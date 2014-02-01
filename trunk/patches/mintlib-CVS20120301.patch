@@ -158,3 +158,14 @@ Index: tz/Makefile
  
  ifdef CROSS
  NOTZ=yes
+===================================================================
+--- startup/crt0.S	(Revision 7)
++++ startup/crt0.S	(Arbeitskopie)
+@@ -47,6 +47,7 @@
+
+        .text
+        .even
++       .section        .text.entry.mint,"ax",@progbits
+        .globl  __start
+ __start:
+        subl    a6, a6          | clear a6 for debuggers

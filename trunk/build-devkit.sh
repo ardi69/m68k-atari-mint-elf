@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------------
 REMAKE=0
 
-if [ 11 -eq 1 ] ; then
+if [ 1 -eq 1 ] ; then
   echo "Currently in release cycle, proceed with caution, do not report problems, do not ask for support."
   echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
   echo "http://sourceforge.net/projects/devkitpro/files/buildscripts/"
@@ -51,6 +51,7 @@ BINUTILS_VER=2.22
 NEWLIB_VER=1.20.0
 MINTLIB_VER="CVS20120301"
 PMLLIB_VER="2.03"
+GEMLIB_VER="CVS-20130415"
 
 GDB_VER=7.4
 package=devkitMINT
@@ -77,6 +78,9 @@ MINTLIB_URL="$DEVKITMINT_URL/$MINTLIB"
 PMLLIB="pml-$PMLLIB_VER.tar.bz2"
 PMLLIB_URL="$DEVKITMINT_URL/$PMLLIB"
 
+GEMLIB="gemlib-CVS-20130415.tar.bz2"
+GEMLIB_URL="http://vincent.riviere.free.fr/soft/m68k-atari-mint/archives/gemlib-CVS-20130415.tar.bz2"
+
 DOWNLOAD=0
 
 if [ ! -z "$BUILD_DKMINT_DOWNLOAD" ] ; then
@@ -90,7 +94,7 @@ fi
 while [ $DOWNLOAD -eq 0 ]
 do
   echo
-  echo "The installation requires binutils-$BINUTILS_VER, gcc-$GCC_VER, mintlib-$MINTLIB_VER and gdb-$GDB_VER.  Please select an option:"
+  echo "The installation requires binutils-$BINUTILS_VER, gcc-$GCC_VER, mintlib-$MINTLIB_VER, PML-$PMLLIB_VER, GEMlib-$GEMLIB_VER and gdb-$GDB_VER.  Please select an option:"
   echo
   echo "1: I have already downloaded the source packages"
   echo "2: Download the packages for me (requires curl or wget)"
@@ -193,6 +197,14 @@ then
 	      FOUND=1
       fi
 
+      if [ ! -f $SRCDIR/$GEMLIB ]
+      then
+        echo "Error: $GEMLIB not found in $SRCDIR"
+        exit 1
+      else
+	      FOUND=1
+      fi
+
  #     if [ ! -f $SRCDIR/$NEWLIB ]
  #     then
  #       echo "Error: $NEWLIB not found in $SRCDIR"
@@ -230,7 +242,9 @@ else
 
       $FETCH $MINTLIB_URL || { echo "Error: Failed to download "$MINTLIB; exit 1; }
 
-      $FETCH $PMLLIB_URL || { echo "Error: Failed to download "$MINTLIB; exit 1; }
+      $FETCH $PMLLIB_URL || { echo "Error: Failed to download "$PMLLIB; exit 1; }
+
+      $FETCH $GEMLIB_URL || { echo "Error: Failed to download "$GEMLIB; exit 1; }
 
       SRCDIR=`pwd`
       cd $TEMP_DIR
@@ -244,7 +258,7 @@ BINUTILS_SRCDIR="binutils-$BINUTILS_VER"
 GCC_SRCDIR="gcc-$GCC_VER"
 MINTLIB_SRCDIR="mintlib-$MINTLIB_VER"
 PMLLIB_SRCDIR="pml-$PMLLIB_VER"
-
+GEMLIB_SRCDIR="gemlib-$GEMLIB_VER"
 GDB_SRCDIR="gdb-$GDB_VER"
 
 
@@ -333,6 +347,9 @@ then
 
   echo "Extracting $PMLLIB"
   tar -xjf $SRCDIR/$PMLLIB || { echo "Error extracting "$PMLLIB; exit 1; }
+
+  echo "Extracting $GEMLIB"
+  tar -xjf $SRCDIR/$GEMLIB || { echo "Error extracting "$GEMLIB; exit 1; }
 
   touch extracted_archives
 

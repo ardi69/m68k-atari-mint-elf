@@ -2087,7 +2087,7 @@ Index: gas/config/te-mint.h
 ===================================================================
 --- gas/config/te-mint.h	(Revision 0)
 +++ gas/config/te-mint.h	(Arbeitskopie)
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +/* Copyright 2008 Free Software Foundation, Inc.
 +
 +   This file is part of GAS, the GNU Assembler.
@@ -2111,6 +2111,7 @@ Index: gas/config/te-mint.h
 +
 +#define LOCAL_LABELS_DOLLAR 1
 +#define LOCAL_LABELS_FB 1
++#define REGISTER_PREFIX_OPTIONAL 1
 +
 +/* These define interfaces.  */
 +#ifdef   OBJ_HEADER
@@ -2673,7 +2674,7 @@ Index: ld/scripttempl/m68kmint.sc
 ===================================================================
 --- ld/scripttempl/m68kmint.sc	(Revision 0)
 +++ ld/scripttempl/m68kmint.sc	(Arbeitskopie)
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +cat <<EOF
 +${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 +${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
@@ -2690,6 +2691,7 @@ Index: ld/scripttempl/m68kmint.sc
 +  .text :
 +  {
 +    ${RELOCATING+.text_start = .;}
++    *(.text.entry.mint)
 +    *(.text.unlikely .text.*_unlikely)
 +    *(.text.exit .text.exit.*)
 +    *(.text.startup .text.startup.*)
@@ -2716,7 +2718,7 @@ Index: ld/scripttempl/m68kmint.sc
 +    ${RELOCATING+__etext = .;}
 +  }
 +
-+  .data :
++  .data ALIGN(2) :
 +  {
 +    ${RELOCATING+.data_start = .;}
 +    *(.data) *(.data.*) *(.gnu.linkonce.d.*)
@@ -2724,7 +2726,7 @@ Index: ld/scripttempl/m68kmint.sc
 +    ${RELOCATING+__edata = .;}
 +  }
 +
-+  .bss :
++  .bss ALIGN(2) :
 +  {
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
