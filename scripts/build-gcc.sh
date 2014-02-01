@@ -19,6 +19,13 @@ case $PLATFORM in
     ;;
 esac
 
+# breaks windows restriction sed -i
+function sed_i {
+  if [ ! -f $2.backup ]; then
+	 cp $2 $2.backup
+  fi
+  sed "$1" $2 > $2.seded && rm $2 && mv $2.seded $2
+}
 
 #---------------------------------------------------------------------------------
 # build and install binutils
@@ -144,31 +151,71 @@ PMLINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
 
 if [ ! -f built-pml ]
 then
-  sed -i "s:^\(CROSSDIR =\).*:\1 $PMLINSTALL_DIR:g" Makefile Makefile.32 Makefile.16
-  sed -i "s:^\(CC =\).*:\1 m68k-atari-mint-gcc:g" Makefile Makefile.32 Makefile.16
-  sed -i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile Makefile.32 Makefile.16
-  sed -i "s:^\(CFLAGS =.*\):\1 -Wa,--register-prefix-optional:g" Makefile.32 Makefile.16
+  if [ ! -f built-pml-68000 ]
+  then
+    sed_i "s:^\(CROSSDIR =\).*:\1 $PMLINSTALL_DIR:g" Makefile
+    sed_i "s:^\(CROSSDIR =\).*:\1 $PMLINSTALL_DIR:g" Makefile.32
+    sed_i "s:^\(CROSSDIR =\).*:\1 $PMLINSTALL_DIR:g" Makefile.16
+    sed_i "s:^\(CC =\).*:\1 m68k-atari-mint-gcc:g" Makefile
+    sed_i "s:^\(CC =\).*:\1 m68k-atari-mint-gcc:g" Makefile.32
+    sed_i "s:^\(CC =\).*:\1 m68k-atari-mint-gcc:g" Makefile.16
+    sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile
+    sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile.32
+    sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile.16
+    sed_i "s:^\(CFLAGS =.*\):\1 -Wa,--register-prefix-optional:g" Makefile.32
+    sed_i "s:^\(CFLAGS =.*\):\1 -Wa,--register-prefix-optional:g" Makefile.16
 
-  # 1st pass for compiling m68000 libraries
-	$MAKE WITH_SHORT_LIBS=1
-	$MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1
-
-  # 2nd pass for compiling m68020-60 libraries
-  $MAKE clean
-  sed -i "s:^\(CFLAGS =.*\):\1 -m68020-60:g" Makefile.32 Makefile.16
-  sed -i "s:^\(CROSSLIB =.*\):\1/m68020-60:g" Makefile
-  $MAKE WITH_SHORT_LIBS=1
-	$MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1
-
-  # 3rd pass for compiling ColdFire V4e libraries
-  $MAKE clean
-  sed -i "s:-m68020-60:-mcpu=5475:g" Makefile.32 Makefile.16
-  sed -i "s:m68020-60:m5475:g" Makefile
-  $MAKE WITH_SHORT_LIBS=1
-	$MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1
-
-#  $MAKE CROSS=yes MINTLIB_INSTALLDIR=$INSTALLDIR/devkitMINT/$target install || { echo "Error building mintlib"; exit 1; }
+    # 1st pass for compiling m68000 libraries
+    $MAKE WITH_SHORT_LIBS=1 || { echo "Error building pml for m68000"; exit 1; }
+    $MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1 || { echo "Error installing pml for m68000"; exit 1; }
+    touch built-pml-68000
+  fi
+  if [ ! -f built-pml-68020 ]
+  then
+    # 2nd pass for compiling m68020-60 libraries
+    $MAKE clean
+    sed_i "s:^\(CFLAGS =.*\):\1 -m68020-60:g" Makefile.32
+    sed_i "s:^\(CFLAGS =.*\):\1 -m68020-60:g" Makefile.16
+    sed_i "s:^\(CROSSLIB =.*\):\1/m68020-60:g" Makefile
+    $MAKE WITH_SHORT_LIBS=1 || { echo "Error building pml for m68020-60"; exit 1; }
+    $MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1 || { echo "Error installing pml for m68020-60"; exit 1; }
+    touch built-pml-68020
+  fi
+  if [ ! -f built-pml-m5475 ]
+  then
+    # 3rd pass for compiling ColdFire V4e libraries
+    $MAKE clean
+    sed_i "s:-m68020-60:-mcpu=5475:g" Makefile.32
+    sed_i "s:-m68020-60:-mcpu=5475:g" Makefile.16
+    sed_i "s:m68020-60:m5475:g" Makefile
+    $MAKE WITH_SHORT_LIBS=1 || { echo "Error building pml for ColdFire V4e"; exit 1; }
+    $MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1 || { echo "Error installing pml for ColdFire V4e"; exit 1; }
+    touch built-pml-m5475
+  fi
   touch built-pml
+fi
+
+#---------------------------------------------------------------------------------
+# build and install gemlib
+#---------------------------------------------------------------------------------
+
+cd $BUILDSCRIPTDIR
+#mkdir -p $target/pml
+#echo $target/../$PMLLIB_SRCDIR/pmlsrc
+cd $target/../$GEMLIB_SRCDIR/gemlib
+
+GEMLIBINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
+
+if [ ! -f built-gemlib ]
+then
+  sed_i "s:^#CROSS = yes$:CROSS = yes:g" ../CONFIGVARS
+  sed_i "s:^CROSS = no$:#CROSS = no:g" ../CONFIGVARS
+  sed_i "s:^WITH_020_LIB =.*$:WITH_020_LIB = yes:g" ../CONFIGVARS
+  sed_i "s:^WITH_V4E_LIB =.*$:WITH_V4E_LIB = yes:g" ../CONFIGVARS
+  sed_i "s:^PREFIX=/usr/m68k-atari-mint$:PREFIX=$GEMLIBINSTALL_DIR:g" ../CONFIGVARS
+
+  $MAKE install || { echo "Error building gemlib"; exit 1; }
+  touch built-gemlib
 fi
 
 #---------------------------------------------------------------------------------
@@ -189,7 +236,7 @@ then
   $MAKE install || { echo "Error installing gcc stage2"; exit 1; }
   touch installed-gcc-stage2
 fi
-exit;
+#exit;
 cd $BUILDSCRIPTDIR
 
 #---------------------------------------------------------------------------------
