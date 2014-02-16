@@ -91,7 +91,7 @@ then
         --target=$target \
         --prefix=$prefix\
         --enable-lto $plugin_ld\
-        --with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitMINT release 1" \
+        --with-bugurl="http://code.google.com/p/m68k-atari-mint-elf/issues/list" --with-pkgversion="devkitMINT release 1" \
         || { echo "Error configuring gcc"; exit 1; }
   touch configured-gcc
 fi
@@ -258,6 +258,12 @@ if [ ! -f installed-tostool ]
 then
   gcc -O2 -Wall -v tostool.c -o $prefix/bin/tostool.exe || { echo "Error installing tostool"; exit 1; }
   touch installed-tostool
+fi
+
+if [ ! -f installed-bin2s ]
+then
+  gcc -O2 -Wall -v bin2s.c -o $prefix/bin/bin2s.exe || { echo "Error installing bin2s"; exit 1; }
+  touch installed-bin2s
 fi
 
 #---------------------------------------------------------------------------------
