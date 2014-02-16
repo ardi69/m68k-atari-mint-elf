@@ -214,6 +214,9 @@ then
   sed_i "s:^WITH_V4E_LIB =.*$:WITH_V4E_LIB = yes:g" ../CONFIGVARS
   sed_i "s:^PREFIX=/usr/m68k-atari-mint$:PREFIX=$GEMLIBINSTALL_DIR:g" ../CONFIGVARS
 
+  # hotfix
+  sed_i "s:mt_event_mouse:mt_evnt_mouse:g" gem.h
+
   $MAKE install || { echo "Error building gemlib"; exit 1; }
   touch built-gemlib
 fi
