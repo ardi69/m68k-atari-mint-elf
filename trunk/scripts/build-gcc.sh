@@ -53,6 +53,14 @@ then
   $MAKE install || { echo "Error installing binutils"; exit 1; }
   touch installed-binutils
 fi
+
+if [ ! -f installed-extra-files ]
+then
+  cp -vr ../../extra-files/* $INSTALLDIR || { echo "Error installing extar-files"; exit 1; }
+  touch installed-extra-files
+fi
+
+
 cd $BUILDSCRIPTDIR
 
 #---------------------------------------------------------------------------------
@@ -239,12 +247,23 @@ then
   $MAKE install || { echo "Error installing gcc stage2"; exit 1; }
   touch installed-gcc-stage2
 fi
-#exit;
-cd $BUILDSCRIPTDIR
+
+#---------------------------------------------------------------------------------
+# build and install tools
+#---------------------------------------------------------------------------------
+
+cd $BUILDSCRIPTDIR/tools
+
+if [ ! -f installed-tostool ]
+then
+  gcc -O2 -Wall -v tostool.c -o $prefix/bin/tostool.exe || { echo "Error installing tostool"; exit 1; }
+  touch installed-tostool
+fi
 
 #---------------------------------------------------------------------------------
 # build and install the debugger
 #---------------------------------------------------------------------------------
+#exit;
 mkdir -p $target/gdb
 cd $target/gdb
 
