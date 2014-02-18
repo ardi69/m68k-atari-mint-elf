@@ -18,18 +18,17 @@ TARGET		:=	$(shell basename $(CURDIR)).app
 BUILD			:=	build
 SOURCES		:=	gfx source data  
 INCLUDES		:=	include build
-LIBNDS		:=	$(DEVKITPRO)/libmint
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS		:=	-g -Wall -O2 -save-temps
+CFLAGS		:=	-g -Wall -O2
 
 CFLAGS		+=	$(INCLUDE)
 CXXFLAGS		:= $(CFLAGS) 
 
 ASFLAGS		:=	-g
-LDFLAGS		= -Wl,-Map,$(notdir $*.map)
+LDFLAGS		:=
 TOOLFLAGS	:=	-v
 
 #---------------------------------------------------------------------------------
@@ -42,7 +41,7 @@ LIBS	:=
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(LIBNDS)
+LIBDIRS	:=	$(LIBMINT)
  
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -106,11 +105,11 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-#$(OUTPUT).tos : $(OUTPUT).elf
+ifeq ($(suffix $(OUTPUT)),.slb)
 
-#$(OUTPUT).elf : $(OFILES) ../m68kmint.x
-#$(OUTPUT) : $(OFILES)
+LDFLAGS := -Tm68k_magic_slb.ld -nostdlib $(LDFLAGS)
 
+endif
 ifeq ($(suffix $(OUTPUT)),.a)
 
 $(OUTPUT) : $(OFILES)

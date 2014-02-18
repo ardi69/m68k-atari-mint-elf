@@ -266,6 +266,16 @@ then
   touch installed-bin2s
 fi
 
+if [ ! -f installed-crt0_slb ]
+then
+  (
+    $prefix/bin/$target-gcc -O2 -Wall -v -c crt0.slb.c -o $prefix/$target/lib/crt0.slb.o &&
+    $prefix/bin/$target-gcc -O2 -Wall -v -m68020-60 -c crt0.slb.c -o $prefix/$target/lib/m68020-60/crt0.slb.o &&
+    $prefix/bin/$target-gcc -O2 -Wall -v -mcfv4e -c crt0.slb.c -o $prefix/$target/lib/m5475/crt0.slb.o
+  ) || { echo "Error installing crt0.slb.o"; exit 1; }
+  touch installed-crt0_slb
+fi
+
 #---------------------------------------------------------------------------------
 # build and install the debugger
 #---------------------------------------------------------------------------------
