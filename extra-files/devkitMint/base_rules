@@ -15,6 +15,9 @@ export AR	:=	$(PREFIX)ar
 export OBJCOPY	:=	$(PREFIX)objcopy
 export TOSTOOL	:=	tostool
 
+LIBMINT		:=	$(DEVKITMINT)/../libmint
+
+
 ifneq (,$(ISVC))
 
 	ERROR_FILTER	:=	2>&1 | sed -e 's/\(.[a-zA-Z]\+\):\([0-9]\+\):/\1(\2):/g' && exit $$PIPESTATUS
@@ -31,19 +34,38 @@ endif
 %.o: %.cpp
 	@echo $(notdir $<)
 	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -c $< -o $@ $(ERROR_FILTER)
-	
+
+#---------------------------------------------------------------------------------
+%.16.o: %.16.cpp
+	@echo $(notdir $<)
+	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -mshort -c $< -o $@ $(ERROR_FILTER)
+
 #---------------------------------------------------------------------------------
 %.o: %.cxx
 	@echo $(notdir $<)
 	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -c $< -o $@ $(ERROR_FILTER)
-	
+
+%.16.o: %.16.cxx
+	@echo $(notdir $<)
+	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -mshort -c $< -o $@ $(ERROR_FILTER)
+
 #---------------------------------------------------------------------------------
 %.o: %.c
 	@echo $(notdir $<)
 	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@ $(ERROR_FILTER)
 
 #---------------------------------------------------------------------------------
+%.16.o: %.16.c
+	@echo $(notdir $<)
+	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c -mshort $< -o $@ $(ERROR_FILTER)
+
+#---------------------------------------------------------------------------------
 %.o: %.m
+	@echo $(notdir $<)
+	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(OBJCFLAGS) -c $< -o $@ $(ERROR_FILTER)
+
+#---------------------------------------------------------------------------------
+%.16.o: %.16.m
 	@echo $(notdir $<)
 	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(OBJCFLAGS) -c $< -o $@ $(ERROR_FILTER)
 
@@ -60,27 +82,33 @@ endif
 #---------------------------------------------------------------------------------
 %.elf: $(OFILES)
 	@echo linking $(notdir $@)
-	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+	@$(LD) -Wl,-Map,$(notdir $*.map) $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+
 #---------------------------------------------------------------------------------
 %.tos: %.elf
 	@echo make $(notdir $@)
 	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+
 #---------------------------------------------------------------------------------
 %.ttp: %.elf
 	@echo make $(notdir $@)
 	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+
 #---------------------------------------------------------------------------------
 %.prg: %.elf
 	@echo make $(notdir $@)
 	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+
 #---------------------------------------------------------------------------------
 %.app: %.elf
 	@echo make $(notdir $@)
 	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+
 #---------------------------------------------------------------------------------
-%.gtp: %.elf
+%.slb: %.elf
 	@echo make $(notdir $@)
-	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+	@$(TOSTOOL) --best-fit $(TOOLFLAGS) $< $@
+
 #---------------------------------------------------------------------------------
 # canned command sequence for binary data
 #---------------------------------------------------------------------------------
@@ -90,8 +118,8 @@ define bin2o
 	@echo "extern const unsigned char" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"[];" >> `(echo $(<F) | tr . _)`.h
 	@echo "extern const unsigned long" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`_size";" >> `(echo $(<F) | tr . _)`.h
 endef
+
 #---------------------------------------------------------------------------------
-%.o	:	%.bin
-#---------------------------------------------------------------------------------
+%.o: %.bin
 	@echo $(notdir $<)
 	$(bin2o)
