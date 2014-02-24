@@ -17,6 +17,7 @@ export TOSTOOL	:=	tostool
 
 LIBMINT		:=	$(DEVKITMINT)/../libmint
 
+ISVC=$(or $(VCBUILDHELPER_COMMAND),$(MSBUILDEXTENSIONSPATH32),$(MSBUILDEXTENSIONSPATH),$(VISUALSTUDIODIR))
 
 ifneq (,$(ISVC))
 
@@ -101,6 +102,11 @@ endif
 
 #---------------------------------------------------------------------------------
 %.app: %.elf
+	@echo make $(notdir $@)
+	@$(TOSTOOL) $(TOOLFLAGS) $< $@
+
+#---------------------------------------------------------------------------------
+%.gtp: %.elf
 	@echo make $(notdir $@)
 	@$(TOSTOOL) $(TOOLFLAGS) $< $@
 

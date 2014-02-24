@@ -63,6 +63,8 @@ typedef struct {
 
 #define SHF_ALLOC		2
 
+#define R_68K_32		1
+
 typedef struct {
 	uint32_t	p_type;
 	uint32_t	p_offset;
@@ -403,16 +405,16 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		if(swap32(map->shdrs[i].s_type) == SHT_RELA && swap32(map->shdrs[swap32(map->shdrs[i].s_info)].s_flags) & SHF_ALLOC)
 			rela_count += swap32(map->shdrs[i].s_size)/sizeof(Elf32_Rela);
 	}
-	uint32_t *relas=0;
+	uint32_t *rela_start=0, *rela_end=0;
 	if(rela_count) {
-		uint32_t *p_relas = relas = (uint32_t*)malloc(rela_count * sizeof(uint32_t));
-		if(p_relas == 0) die("failed to allocate memory\n");
+		rela_end = rela_start = (uint32_t*)malloc(rela_count * sizeof(uint32_t));
+		if(rela_end == 0) die("failed to allocate memory\n");
 		for(i = 0; i < map->shnum; i++) {
 			Elf32_Rela *tmp_relas;
 			if(swap32(map->shdrs[i].s_type) == SHT_RELA && swap32(map->shdrs[swap32(map->shdrs[i].s_info)].s_flags) & SHF_ALLOC) {
 				char *s_name = &map->shstrtab[swap32(map->shdrs[i].s_name)];
 				uint32_t s_size = swap32(map->shdrs[i].s_size);
-				if(verbosity >=2 ) printf("add rela's from %s\n", s_name);
+				if(verbosity >=2 ) fprintf(stderr, "search rela's from %s\n", s_name);
 				if((tmp_relas = (Elf32_Rela*)malloc(s_size))==0)
 					die("failed to allocate memory\n");
 				if(fseek(map->elf, swap32(map->shdrs[i].s_offset), SEEK_SET) < 0)
@@ -424,15 +426,17 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				{
 				//	if(tmp_relas[j].r_addend != 0)
 				//		fprintf(stderr, "Warning: rela with addend found (off:%06x addend:%d\n", swap32(tmp_relas[j].r_offset), swap32(tmp_relas[j].r_addend));
-					*p_relas++ = swap32(tmp_relas[j].r_offset);
+					if ((swap32(tmp_relas[j].r_info) & 0xff) == R_68K_32)
+						*rela_end++ = swap32(tmp_relas[j].r_offset);
 				}
 				free(tmp_relas);
 			}
 		}
-		qsort(relas, rela_count, sizeof(uint32_t), rela_cmp);
+		rela_count = rela_end-rela_start;
+		qsort(rela_start, rela_count, sizeof(uint32_t), rela_cmp);
 		uint32_t bytes = 4; /* First entry is a long.  */
 		for (i = 1; i < rela_count; i++) {
-			uint32_t diff = relas[i] - relas[i - 1];
+			uint32_t diff = rela_start[i] - rela_start[i - 1];
 			bytes += (diff + 253) / 254;
 		}
 		bytes++; /* Last entry is (byte) 0 if there are some relocations.  */
@@ -441,10 +445,10 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		if((map->relas = ptr = (uint8_t*)malloc(bytes))==0)
 			die("failed to allocate memory\n");
 		/* Now fill the array.  */
-		*((uint32_t*)ptr) = swap32(relas[0]);
+		*((uint32_t*)ptr) = swap32(rela_start[0]);
 		ptr += 4;
 		for (i = 1; i < rela_count; i++) {
-			uint32_t diff = relas[i] - relas[i - 1];
+			uint32_t diff = rela_start[i] - rela_start[i - 1];
 			while (diff > 254) {
 				*ptr++ = 1;
 				diff -= 254;
