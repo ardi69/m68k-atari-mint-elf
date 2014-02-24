@@ -46,26 +46,22 @@ fi
 # Ask whether to download the source packages or not
 #---------------------------------------------------------------------------------
 
-GCC_VER=4.6.2
-BINUTILS_VER=2.22
+GCC_VER=4.8.2
+BINUTILS_VER=2.24
 NEWLIB_VER=1.20.0
 MINTLIB_VER="CVS20120301"
 PMLLIB_VER="2.03"
 GEMLIB_VER="CVS-20130415"
-
 GDB_VER=7.4
+
 package=devkitMINT
 builddir=m68k-atari-mint
 target=m68k-atari-mint
 toolchain=DEVKITMINT
 
-GCC_CORE="gcc-core-$GCC_VER.tar.bz2"
-GCC_GPP="gcc-g++-$GCC_VER.tar.bz2"
-GCC_OBJC="gcc-objc-$GCC_VER.tar.bz2"
+GCC="gcc-$GCC_VER.tar.bz2"
 
-GCC_CORE_URL="$DEVKITMINT_URL/$GCC_CORE"
-GCC_GPP_URL="$DEVKITMINT_URL/gcc-g++-$GCC_VER.tar.bz2"
-GCC_OBJC_URL="$DEVKITMINT_URL/$GCC_OBJC"
+GCC_URL="$DEVKITMINT_URL/$GCC"
 
 BINUTILS="binutils-$BINUTILS_VER.tar.bz2"
 BINUTILS_URL="$DEVKITMINT_URL/$BINUTILS"
@@ -157,25 +153,9 @@ then
 	    FOUND=1
       fi
 
-      if [ ! -f $SRCDIR/$GCC_GPP ]
+      if [ ! -f $SRCDIR/$GCC ]
       then
-        echo "Error: $GCC_GPP not found in $SRCDIR"
-        exit 1
-      else
-	      FOUND=1
-      fi
-
-      if [ ! -f $SRCDIR/$GCC_CORE ]
-      then
-        echo "Error: $GCC_CORE not found in $SRCDIR"
-        exit 1
-      else
-        FOUND=1
-      fi
-
-      if [ ! -f $SRCDIR/$GCC_OBJC ]
-      then
-        echo "Error: $GCC_OBJC not found in $SRCDIR"
+        echo "Error: $GCC not found in $SRCDIR"
         exit 1
       else
 	      FOUND=1
@@ -232,11 +212,7 @@ else
 			fi
       $FETCH $BINUTILS_URL || { echo "Error: Failed to download "$BINUTILS; exit 1; }
 
-      $FETCH $GCC_CORE_URL || { echo "Error: Failed to download "$GCC_CORE; exit 1; }
-
-      $FETCH $GCC_GPP_URL || { echo "Error: Failed to download "$GCC_GPP; exit 1; }
-
-      $FETCH $GCC_OBJC_URL || { echo "Error: Failed to download "$GCC_OBJC; exit 1; }
+      $FETCH $GCC_URL || { echo "Error: Failed to download "$GCC; exit 1; }
 
       $FETCH $GDB_URL || { echo "Error: Failed to download "$GDB; exit 1; }
 
@@ -333,14 +309,8 @@ then
   echo "Extracting $BINUTILS"
   tar -xjf $SRCDIR/$BINUTILS || { echo "Error extracting "$BINUTILS; exit 1; }
 
-  echo "Extracting $GCC_CORE"
-  tar -xjf $SRCDIR/$GCC_CORE || { echo "Error extracting "$GCC_CORE; exit 1; }
-
-  echo "Extracting $GCC_GPP"
-  tar -xjf $SRCDIR/$GCC_GPP || { echo "Error extracting "$GCC_GPP; exit 1; }
-
-  echo "Extracting $GCC_OBJC"
-  tar -xjf $SRCDIR/$GCC_OBJC || { echo "Error extracting "$GCC_OBJC; exit 1; }
+  echo "Extracting $GCC"
+  tar -xjf $SRCDIR/$GCC || { echo "Error extracting "$GCC; exit 1; }
 
   echo "Extracting $MINTLIB"
   tar -xjf $SRCDIR/$MINTLIB || { echo "Error extracting "$MINTLIB; exit 1; }
@@ -364,12 +334,12 @@ then
 
   if [ -f $patchdir/binutils-$BINUTILS_VER.patch ]
   then
-    patch -p0 -d $BINUTILS_SRCDIR -i $patchdir/binutils-$BINUTILS_VER.patch || { echo "Error patching binutils"; exit 1; }
+    patch -p1 -d $BINUTILS_SRCDIR -i $patchdir/binutils-$BINUTILS_VER.patch || { echo "Error patching binutils"; exit 1; }
   fi
 
   if [ -f $patchdir/gcc-$GCC_VER.patch ]
   then
-    patch -p0 -d $GCC_SRCDIR -i $patchdir/gcc-$GCC_VER.patch || { echo "Error patching gcc"; exit 1; }
+    patch -p1 -d $GCC_SRCDIR -i $patchdir/gcc-$GCC_VER.patch || { echo "Error patching gcc"; exit 1; }
   fi
 
   if [ -f $patchdir/mintlib-$MINTLIB_VER.patch ]

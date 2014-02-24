@@ -54,19 +54,18 @@ then
   touch installed-binutils
 fi
 
+
+#---------------------------------------------------------------------------------
+# install extra-files
+#---------------------------------------------------------------------------------
+cd $BUILDSCRIPTDIR
+
 if [ ! -f installed-extra-files ]
 then
-  cp -vr ../../extra-files/* $INSTALLDIR || { echo "Error installing extar-files"; exit 1; }
+  cp -vr extra-files/* $INSTALLDIR || { echo "Error installing extar-files"; exit 1; }
   touch installed-extra-files
 fi
 
-
-cd $BUILDSCRIPTDIR
-
-#---------------------------------------------------------------------------------
-# included zlib has issues with multilib toolchain
-#---------------------------------------------------------------------------------
-rm -fr $GCC_SRCDIR/zlib
 
 #---------------------------------------------------------------------------------
 # build and install just the c compiler
@@ -77,15 +76,14 @@ cd $target/gcc
 
 if [ ! -f configured-gcc ]
 then
-#  cp -r $BUILDSCRIPTDIR/$NEWLIB_SRCDIR/newlib/libc/include $INSTALLDIR/devkitMINT/$target/sys-include
-#        --disable-libmudflap
-  CFLAGS="$cflags" LDFLAGS="$ldflags" CFLAGS_FOR_TARGET="-O2" LDFLAGS_FOR_TARGET="" ../../$GCC_SRCDIR/configure \
+  CFLAGS="$cflags" LDFLAGS="$ldflags -static" CFLAGS_FOR_TARGET="-O2 -fomit-frame-pointer" LDFLAGS_FOR_TARGET="" \
+        ../../$GCC_SRCDIR/configure \
         --enable-languages=c,c++,objc \
         --enable-interwork --enable-multilib\
         --with-gcc --with-gnu-ld --with-gnu-as \
         --disable-dependency-tracking \
         --disable-shared --disable-threads --disable-win32-registry --disable-nls --disable-debug\
-				--disable-libssp --disable-libgomp \
+        --disable-libssp --disable-libgomp \
         --disable-libstdcxx-pch \
         --disable-initfini-array \
         --target=$target \
@@ -140,10 +138,10 @@ fi
 # build and install mintlib
 #---------------------------------------------------------------------------------
 cd $target/../$MINTLIB_SRCDIR
-if [ ! -f built-mintlib ]
+if [ ! -f installed-mintlib ]
 then
-  $MAKE CROSS=yes MINTLIB_INSTALLDIR=$INSTALLDIR/devkitMINT/$target install || { echo "Error building mintlib"; exit 1; }
-  touch built-mintlib
+  $MAKE CFLAGS="-O2" CROSS=yes MINTLIB_INSTALLDIR=$INSTALLDIR/devkitMINT/$target install || { echo "Error building mintlib"; exit 1; }
+  touch installed-mintlib
 fi
 
 #---------------------------------------------------------------------------------
@@ -157,7 +155,7 @@ cd $target/../$PMLLIB_SRCDIR/pmlsrc
 #PMLINSTALL_DIR=$BUILDSCRIPTDIR/$target/pml
 PMLINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
 
-if [ ! -f built-pml ]
+if [ ! -f installed-pml ]
 then
   if [ ! -f built-pml-68000 ]
   then
@@ -170,10 +168,12 @@ then
     sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile
     sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile.32
     sed_i "s:^\(AR =\).*:\1 m68k-atari-mint-ar:g" Makefile.16
-    sed_i "s:^\(CFLAGS =.*\):\1 -Wa,--register-prefix-optional:g" Makefile.32
-    sed_i "s:^\(CFLAGS =.*\):\1 -Wa,--register-prefix-optional:g" Makefile.16
 
     # 1st pass for compiling m68000 libraries
+    $MAKE WITH_SHORT_LIBS=1 clean
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.32
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.16
+    sed_i "s:/m68020-60\|/m5475::g" Makefile
     $MAKE WITH_SHORT_LIBS=1 || { echo "Error building pml for m68000"; exit 1; }
     $MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1 || { echo "Error installing pml for m68000"; exit 1; }
     touch built-pml-68000
@@ -181,7 +181,10 @@ then
   if [ ! -f built-pml-68020 ]
   then
     # 2nd pass for compiling m68020-60 libraries
-    $MAKE clean
+    $MAKE WITH_SHORT_LIBS=1 clean
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.32
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.16
+    sed_i "s:/m68020-60\|/m5475::g" Makefile
     sed_i "s:^\(CFLAGS =.*\):\1 -m68020-60:g" Makefile.32
     sed_i "s:^\(CFLAGS =.*\):\1 -m68020-60:g" Makefile.16
     sed_i "s:^\(CROSSLIB =.*\):\1/m68020-60:g" Makefile
@@ -192,15 +195,18 @@ then
   if [ ! -f built-pml-m5475 ]
   then
     # 3rd pass for compiling ColdFire V4e libraries
-    $MAKE clean
-    sed_i "s:-m68020-60:-mcpu=5475:g" Makefile.32
-    sed_i "s:-m68020-60:-mcpu=5475:g" Makefile.16
-    sed_i "s:m68020-60:m5475:g" Makefile
+    $MAKE WITH_SHORT_LIBS=1 clean
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.32
+    sed_i "s: -m68020-60\| -mcpu=5475::g" Makefile.16
+    sed_i "s:/m68020-60\|/m5475::g" Makefile
+    sed_i "s:^\(CFLAGS =.*\):\1 -mcpu=5475:g" Makefile.32
+    sed_i "s:^\(CFLAGS =.*\):\1 -mcpu=5475:g" Makefile.16
+    sed_i "s:^\(CROSSLIB =.*\):\1/m5475:g" Makefile
     $MAKE WITH_SHORT_LIBS=1 || { echo "Error building pml for ColdFire V4e"; exit 1; }
     $MAKE install CROSSDIR=$PMLINSTALL_DIR WITH_SHORT_LIBS=1 || { echo "Error installing pml for ColdFire V4e"; exit 1; }
     touch built-pml-m5475
   fi
-  touch built-pml
+  touch installed-pml
 fi
 
 #---------------------------------------------------------------------------------
@@ -214,7 +220,7 @@ cd $target/../$GEMLIB_SRCDIR/gemlib
 
 GEMLIBINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
 
-if [ ! -f built-gemlib ]
+if [ ! -f installed-gemlib ]
 then
   sed_i "s:^#CROSS = yes$:CROSS = yes:g" ../CONFIGVARS
   sed_i "s:^CROSS = no$:#CROSS = no:g" ../CONFIGVARS
@@ -226,7 +232,7 @@ then
   sed_i "s:mt_event_mouse:mt_evnt_mouse:g" gem.h
 
   $MAKE install || { echo "Error building gemlib"; exit 1; }
-  touch built-gemlib
+  touch installed-gemlib
 fi
 
 #---------------------------------------------------------------------------------
@@ -238,7 +244,7 @@ cd $target/gcc
 
 if [ ! -f built-gcc-stage2 ]
 then
-  $MAKE || { echo "Error building gcc stage2"; exit 1; }
+  $MAKE all || { echo "Error building gcc stage2"; exit 1; }
   touch built-gcc-stage2
 fi
 
