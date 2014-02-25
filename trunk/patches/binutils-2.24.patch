@@ -2626,11 +2626,10 @@ diff -aurN binutils-2.24.orig//ld/emultempl/mint.em binutils-2.24//ld/emultempl/
 diff -aurN binutils-2.24.orig//ld/scripttempl/m68kmint.sc binutils-2.24//ld/scripttempl/m68kmint.sc
 --- binutils-2.24.orig//ld/scripttempl/m68kmint.sc	1970-01-01 00:00:00 +0000
 +++ binutils-2.24//ld/scripttempl/m68kmint.sc	2014-02-19 17:31:08 +0000
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,80 @@
 +cat <<EOF
 +${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 +${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
-+${RELOCATING+${LIB_SEARCH_DIRS}}
 +SECTIONS
 +{
 +  ${RELOCATING+".mint_prg_info (INFO) :
@@ -2639,30 +2638,30 @@ diff -aurN binutils-2.24.orig//ld/scripttempl/m68kmint.sc binutils-2.24//ld/scri
 +    LONG(.data_start - .text_start );
 +    LONG(.bss_start - .data_start );
 +    LONG(.prg_end - .bss_start );
-+	 LONG(0);
-+	 LONG(0x4d694e54);
-+	 LONG(0);
-+	 SHORT(0);
++    LONG(0);
++    LONG(0x4d694e54);
++    LONG(0);
++    SHORT(0);
 +  }"}
 +  .text :
 +  {
 +    ${RELOCATING+.text_start = .;}
 +
-+	 LONG(0x203a001a);      				/* g_jump_entry[0] */
-+	 LONG(0x4efb08fa);   			   	/* g_jump_entry[0] */
-+	 LONG(0x108);    							/* e_info */
-+    LONG(.data_start - .entry );			/* e_text */
++    LONG(0x203a001a);                  /* g_jump_entry[0] */
++    LONG(0x4efb08fa);                  /* g_jump_entry[0] */
++    LONG(0x108);                       /* e_info */
++    LONG(.data_start - .entry );       /* e_text */
 +    LONG(.bss_start - .data_start );   /* e_data */
 +    LONG(.prg_end - .bss_start );      /* e_bss */
 +	 LONG(0);                           /* e_syms */
 +	 LONG(.entry);                      /* e_entry */
 +	 . = . + 0x10;
-+	 LONG(0);									/* g_stkpos (filled from tostool) */
-+	 LONG(1);									/* g_symbol_format */
++	 LONG(0);                           /* g_stkpos (filled from tostool) */
++	 LONG(1);                           /* g_symbol_format */
 +	 . = . + 0xAC;
 +	 .entry = .;
 +
-+    *(.text.entry.mint)
++    KEEP(*(.text.entry.mint))
 +    *(.text.unlikely .text.*_unlikely)
 +    *(.text.exit .text.exit.*)
 +    *(.text.startup .text.startup.*)
@@ -2679,33 +2678,33 @@ diff -aurN binutils-2.24.orig//ld/scripttempl/m68kmint.sc binutils-2.24//ld/scri
 +    ___CTOR_END__ = .;
 +
 +    /* .dtors */
-+   ___DTOR_LIST__ = .;
++    ___DTOR_LIST__ = .;
 +    LONG((___DTOR_END__ - ___DTOR_LIST__) / 4 - 2);
 +    KEEP (*(.dtors))
 +    KEEP (*(SORT(.dtors.*)))
 +    LONG(0);
 +    ___DTOR_END__ = .;
 +
-+    ${RELOCATING+_etext = .;}
-+    ${RELOCATING+__etext = .;}
 +  }
++  ${RELOCATING+_etext = .;}
++  ${RELOCATING+__etext = .;}
 +
 +  .data . :
 +  {
 +    ${RELOCATING+.data_start = .;}
 +    *(.data) *(.data.*) *(.gnu.linkonce.d.*)
-+    ${RELOCATING+_edata = .;}
-+    ${RELOCATING+__edata = .;}
 +  }
++  ${RELOCATING+_edata = .;}
++  ${RELOCATING+__edata = .;}
 +
 +  .bss . :
 +  {
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
-+    ${RELOCATING+_end = .;}
-+    ${RELOCATING+__end = .;}
-+    ${RELOCATING+.prg_end = .;}
 +  }
++  ${RELOCATING+_end = .;}
++  ${RELOCATING+__end = .;}
++  ${RELOCATING+.prg_end = .;}
 +}
 +EOF
 diff -aurN binutils-2.24.orig//libiberty/hex.c binutils-2.24//libiberty/hex.c
