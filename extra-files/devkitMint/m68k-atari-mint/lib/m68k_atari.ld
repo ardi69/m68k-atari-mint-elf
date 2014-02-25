@@ -1,6 +1,5 @@
 /* Default linker script, for normal executables */
 OUTPUT_FORMAT(elf32-m68k)
-SEARCH_DIR("/home/Armin/mygnu-mint/devkitMINT/devkitMINT/m68k-atari-mint/lib");
 SECTIONS
 {
   .mint_prg_info (INFO) :
@@ -19,7 +18,7 @@ SECTIONS
 	 .text_start = .;
 	 .entry = .;
 
-    *(.text.entry.mint)
+    KEEP(*(.text.entry.mint))
     *(.text.unlikely .text.*_unlikely)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)
