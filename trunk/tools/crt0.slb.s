@@ -4,8 +4,8 @@
 	.long slb_info				/* name		*/	
 	.long 1						/* version	*/	
 	.long 0						/* flags		*/	
-	.long __slb_init			/* init		*/	
-	.long __slb_exit			/* exit		*/	
+	.long .slb_init			/* init		*/	
+	.long .slb_exit			/* exit		*/	
 	.long _slb_open			/* open		*/	
 	.long _slb_close			/* close		*/	
 	.long 0						/* Option	*/	
@@ -26,7 +26,7 @@ slb_info:
 
 	.text
 	.even
-__slb_init:
+.slb_init:
 	move.l %a2,-(%sp)
 	move.l %d2,-(%sp)
 	move.l ___CTOR_LIST__,%d2
@@ -60,7 +60,7 @@ __slb_init:
 	move.l %d0,%d2
 	jra .L3
 	.even
-__slb_exit:
+.slb_exit:
 	move.l %a2,-(%sp)
 	jsr _slb_exit
 	move.l ___DTOR_LIST__+4,%a0

@@ -14,6 +14,7 @@ include $(DEVKITMINT)/base_rules
 # ARCH ist the arch option e.g -m68040 -m68020-60 -mcfv4e
 # SHORT set to -mshort for builds with sizeof(int)==2
 # TYPE is the typ of build set to .prg .app .slb or .a for a library
+# KEEP_ELF is set "no" to make the elf-file temporary
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
@@ -22,6 +23,7 @@ include $(DEVKITMINT)/base_rules
 ARCH			:=	
 SHORT			:=	
 TYPE			:=	.app
+KEPP_ELF		:= yes
 TARGET		:=	$(shell basename $(CURDIR))
 BUILD			:=	build$(ARCH)$(MSHORT)
 SOURCES		:=	gfx source data  
@@ -31,7 +33,7 @@ INCLUDES		:=	include build
 #---------------------------------------------------------------------------------
 
 CFLAGS		:=	$(ARCH) $(MSHORT) -Wall -O2 -ffunction-sections
-CFLAGS		+=	$(INCLUDE)
+CFLAGS		+=	$(INCLUDE) -v
 CXXFLAGS		:=	$(CFLAGS) 
 
 ASFLAGS		:=	$(ARCH) $(MSHORT)
@@ -112,8 +114,8 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT) $(OUTPUT:$(suffix $(OUTPUT))=.elf)
-	@rmdir -p $(dir $(TARGET)) --ignore-fail-on-non-empty
+	rm -fr $(BUILD) $(TARGET) $(TARGET:$(suffix $(TARGET))=.elf)
+	[ ! -d $(dir $(TARGET)) ] || [ "x$(dir $(TARGET))" = "x./" ] || echo rmdir -p $(dir $(TARGET)) --ignore-fail-on-non-empty
 
 
 #---------------------------------------------------------------------------------
@@ -133,9 +135,15 @@ ifeq ($(suffix $(OUTPUT)),.a)
 
 $(OUTPUT) : $(OFILES)
 
+else ifeq ($(KEEP_ELF),yes)
+
+$(OUTPUT) : $(OUTPUT:$(suffix $(OUTPUT))=.elf) 
+
+$(OUTPUT:$(suffix $(OUTPUT))=.elf) : $(OFILES) 
+
 else
 
-all: $(OFILES) $(OUTPUT:$(suffix $(OUTPUT))=.elf) $(OUTPUT)
+$(OUTPUT) : $(OFILES) 
 
 endif 
 
