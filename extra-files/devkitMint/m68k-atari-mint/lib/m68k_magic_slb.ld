@@ -17,11 +17,15 @@ SECTIONS
   .text :
   {
     .text_start = .;
+
+    /* slb_head + slb_exports */
     KEEP(*(.slb_head))
-    LONG((.slb_fnc_tab_end - .slb_fnc_tab_start) / 4);
-    .slb_fnc_tab_start = .;
-    KEEP(*(.slb_fnc_tab))
-    .slb_fnc_tab_end = .;
+    LONG((.slb_export_end - .slb_export_start) / 4);
+    .slb_export_start = .;
+    KEEP(*(SORT(.gnu.linkonce.slb_export.*)))
+    .slb_export_end = .;
+
+    /* .text */
     *(.text.unlikely .text.*_unlikely)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)

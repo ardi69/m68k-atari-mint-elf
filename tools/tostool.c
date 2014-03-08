@@ -64,6 +64,7 @@ typedef struct {
 #define SHF_ALLOC		2
 
 #define R_68K_32		1
+#define R_68K_PC32	4
 
 typedef struct {
 	uint32_t	p_type;
@@ -398,6 +399,36 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		ferrordie(map->elf, "reading section .mint_prg_info");
 
 	//////////////////////////////////////////////////////////////////////////
+	// sections .symtab
+	//////////////////////////////////////////////////////////////////////////
+
+	uint32_t sym_num=0;
+	Elf32_Sym *syms=0;
+	char *sym_names=0;
+
+	for(i = 0; i < map->shnum; i++) {
+		if(swap32(map->shdrs[i].s_type) == SHT_SYMTAB) {
+			syms = (Elf32_Sym*) read_elf_segment(map, i, "reading symtab", &sym_num);
+			sym_num /= sizeof(Elf32_Sym);
+			sym_names = (char*) read_elf_segment(map, swap32(map->shdrs[i].s_link), "reading strtab", 0);
+			break;
+		}
+	}
+	if(syms && sym_names) {
+		for(i = 0; i < sym_num; i++) {
+			if(!strcmp("__stksize", &sym_names[swap32(syms[i].st_name)]))
+				map->stack_pos = swap32(syms[i].st_value);
+		}
+		if(map->stack_pos) {
+			if(fseek(map->elf, map->programm_off + map->stack_pos, SEEK_SET) < 0)
+				ferrordie(map->elf, "reading _stksize");
+			if(fread(&map->stack_size, sizeof(uint32_t), 1, map->elf)!=1)
+				ferrordie(map->elf, "reading _stksize");
+			map->stack_size = (int32_t)swap32((uint32_t)map->stack_size);
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////
 	// sections .rela.*
 	//////////////////////////////////////////////////////////////////////////
 	uint32_t rela_count=0;
@@ -424,10 +455,28 @@ void read_elf_segments(TOS_map *map, const char *elf)
 					ferrordie(map->elf, "reading rela's");
 				for(j=0; j <s_size/sizeof(Elf32_Rela); j++) 
 				{
-				//	if(tmp_relas[j].r_addend != 0)
-				//		fprintf(stderr, "Warning: rela with addend found (off:%06x addend:%d\n", swap32(tmp_relas[j].r_offset), swap32(tmp_relas[j].r_addend));
-					if ((swap32(tmp_relas[j].r_info) & 0xff) == R_68K_32)
-						*rela_end++ = swap32(tmp_relas[j].r_offset);
+					int r_info = (swap32(tmp_relas[j].r_info) & 0xff);
+					if (r_info == R_68K_32) {
+						uint32_t use_rela = 1;
+						int warn=0;
+						uint32_t r_offset = swap32(tmp_relas[j].r_offset);
+						if(syms && sym_names && tmp_relas[j].r_addend == 0) {
+							const char *sym_name = &sym_names[swap32(syms[swap32(tmp_relas[j].r_info)>>8].st_name)];
+							#define isdigit(c) ('9'>=(c) && (c)>='0')
+							if(!strncmp(sym_name, ".slb_export_", 12) && isdigit(sym_name[12]) && isdigit(sym_name[13]) && isdigit(sym_name[14])) {
+								if(!map->is_slb && !warn++)
+									fprintf(stderr, "Warning: Found slb_export but its seems not a slb\n");
+								/* ignore relas for empty slb_export slots */
+								if(fseek(map->elf, map->programm_off + r_offset, SEEK_SET) < 0)
+									ferrordie(map->elf, "reading slb_export entry");
+								if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
+									ferrordie(map->elf, "reading slb_export entry");
+							}
+						}
+						if(use_rela)
+							*rela_end++ = r_offset;
+					} else if(r_info != R_68K_PC32)
+						fprintf(stderr, "Warning: Found relocation other than R_68K_32 or R_68K_PC32 (r_info=%i)\n", r_info);
 				}
 				free(tmp_relas);
 			}
@@ -458,31 +507,6 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		*ptr = 0;
 	}
 
-	uint32_t sym_num=0;
-	Elf32_Sym *syms=0;
-	char *sym_names=0;
-
-	for(i = 0; i < map->shnum; i++) {
-		if(swap32(map->shdrs[i].s_type) == SHT_SYMTAB) {
-			syms = (Elf32_Sym*) read_elf_segment(map, i, "reading symtab", &sym_num);
-			sym_num /= sizeof(Elf32_Sym);
-			sym_names = (char*) read_elf_segment(map, swap32(map->shdrs[i].s_link), "reading strtab", 0);
-		}
-	}
-	if(syms && sym_names) {
-		for(i = 0; i < sym_num; i++) {
-			if(!strcmp("__stksize", &sym_names[swap32(syms[i].st_name)]))
-				map->stack_pos = swap32(syms[i].st_value);
-		}
-		if(map->stack_pos) {
-			if(fseek(map->elf, map->programm_off + map->stack_pos, SEEK_SET) < 0)
-				ferrordie(map->elf, "reading _stksize");
-			if(fread(&map->stack_size, sizeof(uint32_t), 1, map->elf)!=1)
-				ferrordie(map->elf, "reading _stksize");
-			map->stack_size = (int32_t)swap32((uint32_t)map->stack_size);
-		}
-	}
-//	printf("hallo %i\n", (int)sym_count);
 }
 
 
@@ -513,7 +537,7 @@ void fcpy(FILE *dst, FILE *src, uint32_t dst_off, uint32_t src_off, uint32_t siz
 		written = fwrite(blockbuf, 1, block, dst);
 		if(written != block) {
 			free(blockbuf);
-			ferrordie(dst, "writing DOL segment data");
+			ferrordie(dst, "writing TOS segment data");
 		}
 		left -= block;
 	}
