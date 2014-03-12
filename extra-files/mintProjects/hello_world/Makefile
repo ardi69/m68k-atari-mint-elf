@@ -1,7 +1,7 @@
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
-CURMAKEFILE := $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
+CURMAKEFILE := $(CURDIR)/$(shell basename $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 #---------------------------------------------------------------------------------
 
 ifeq ($(strip $(DEVKITMINT)),)
@@ -11,8 +11,9 @@ endif
 include $(DEVKITMINT)/base_rules
 
 #---------------------------------------------------------------------------------
-# ARCH ist the arch option e.g -m68040 -m68020-60 -mcfv4e
-# SHORT set to -mshort for builds with sizeof(int)==2
+# ARCH ist the arch option e.g -m68040 -m68020-60 -mcfv4e add -mshort for a short build
+#      leaf ARCH empty for a m68000 build
+# EXTRA_ARCH like ARCH for extra builds (for mshort add -mshort without space e.g. -m68040-mshort)
 # TYPE is the typ of build set to .prg .app .slb or .a for a library
 # KEEP_ELF is set "no" to make the elf-file temporary
 # TARGET is the name of the output
@@ -20,25 +21,27 @@ include $(DEVKITMINT)/base_rules
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
 #---------------------------------------------------------------------------------
-ARCH			:=	
-SHORT			:=	
+ARCH			:=
+EXTRA_ARCH	:= 
 TYPE			:=	.app
-KEPP_ELF		:= yes
+KEEP_ELF		:= yes
 TARGET		:=	$(shell basename $(CURDIR))
-BUILD			:=	build$(ARCH)$(MSHORT)
+ARCH_SPEC	:= $(subst $(shell echo ' '),,$(ARCH))
+BUILD			:=	build$(ARCH_SPEC)
 SOURCES		:=	gfx source data  
 INCLUDES		:=	include build
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS		:=	$(ARCH) $(MSHORT) -Wall -O2 -ffunction-sections
-CFLAGS		+=	$(INCLUDE) -v
+CFLAGS		:=	$(ARCH) -Wall -O2 -fomit-frame-pointer -ffunction-sections
+CFLAGS		+=	$(INCLUDE) 
 CXXFLAGS		:=	$(CFLAGS) 
 
-ASFLAGS		:=	$(ARCH) $(MSHORT)
-LDFLAGS		:=	$(ARCH) $(MSHORT) -Wl,--gc-sections
-TOOLFLAGS	:=	-v -v
+ASFLAGS		:=	$(ARCH)
+LDFLAGS		:=	$(ARCH) -Wl,--gc-sections
+TOOLFLAGS	:=	
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
@@ -57,7 +60,7 @@ LIBDIRS	:=	$(LIBMINT)
 #---------------------------------------------------------------------------------
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
-MULTILIB		:= $(shell $(DEVKITMINT)/bin/$(CC) $(ARCH) $(SHORT) -print-multi-directory)
+MULTILIB		:= $(shell $(DEVKITMINT)/bin/$(CC) $(ARCH) -print-multi-directory)
 
 ifeq ($(TYPE),.a)
 
@@ -65,7 +68,7 @@ TARGET	:=	lib/$(MULTILIB)/$(TARGET)$(TYPE)
 
 else
 
-TARGET	:=	$(TARGET)$(ARCH)$(MSHORT)$(TYPE)
+TARGET	:=	$(TARGET)$(ARCH_SPEC)$(TYPE)
 
 endif
 
@@ -103,20 +106,27 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib/$(MULTILIB) -L$(dir)/lib)
 
-.PHONY: $(BUILD) clean
+.PHONY: $(BUILD) clean rebuild
 
 #---------------------------------------------------------------------------------
-$(BUILD):
+
+$(BUILD): 
 	@[ -d $(dir $(TARGET)) ] || mkdir -p $(dir $(TARGET))
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURMAKEFILE)
- 
+	@$(foreach arch,$(EXTRA_ARCH),make --no-print-directory -f $(CURMAKEFILE) ARCH='$(subst -, -,$(arch))' EXTRA_ARCH=;)
+
 #---------------------------------------------------------------------------------
 clean:
-	@echo clean ...
-	rm -fr $(BUILD) $(TARGET) $(TARGET:$(suffix $(TARGET))=.elf)
-	[ ! -d $(dir $(TARGET)) ] || [ "x$(dir $(TARGET))" = "x./" ] || echo rmdir -p $(dir $(TARGET)) --ignore-fail-on-non-empty
+	@echo clean $(ARCH_SPEC) ...
+	@rm -fr $(BUILD) $(TARGET) $(TARGET:$(suffix $(TARGET))=.elf)
+	@[ ! -d $(dir $(TARGET)) ] || [ "x$(dir $(TARGET))" = "x./" ] || echo rmdir -p $(dir $(TARGET)) --ignore-fail-on-non-empty
+	@$(foreach arch,$(EXTRA_ARCH),make clean --no-print-directory -f $(CURMAKEFILE) ARCH="$(subst -, -,$(arch))" EXTRA_ARCH=;)
 
+#---------------------------------------------------------------------------------
+rebuild: clean $(BUILD)
+
+-include Make.install
 
 #---------------------------------------------------------------------------------
 else
@@ -135,7 +145,7 @@ ifeq ($(suffix $(OUTPUT)),.a)
 
 $(OUTPUT) : $(OFILES)
 
-else ifeq ($(KEEP_ELF),yes)
+else ifeq ($(strip $(KEEP_ELF)),yes)
 
 $(OUTPUT) : $(OUTPUT:$(suffix $(OUTPUT))=.elf) 
 
