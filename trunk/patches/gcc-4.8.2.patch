@@ -118,18 +118,304 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.h gcc-4.8.2/gcc/config/m68k/m68k.
  									\
        if (TARGET_COLDFIRE)						\
  	{								\
-diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68kelf.h gcc-4.8.2/gcc/config/m68k/m68kelf.h
---- gcc-4.8.2.orig/gcc/config/m68k/m68kelf.h	2013-01-10 20:38:27 +0000
-+++ gcc-4.8.2/gcc/config/m68k/m68kelf.h	2014-02-19 20:40:46 +0000
-@@ -47,7 +47,7 @@
- /* The prefix to add to user-visible assembler symbols.  */
+diff -aurN gcc-4.8.2.orig/gcc/c/c-decl.c gcc-4.8.2/gcc/c/c-decl.c
+--- gcc-4.8.2.orig/gcc/c/c-decl.c	2013-01-10 20:38:27 +0000
++++ gcc-4.8.2/gcc/c/c-decl.c	2014-03-06 23:00:13 +0000
+@@ -4132,13 +4132,17 @@
+ 	ce = declarator->declarator;
+       if (ce->kind == cdk_function)
+ 	{
++		bool mshort=false;
++		if (lookup_attribute ("mshort_call", attributes))
++			mshort = true;
++
+ 	  tree args = ce->u.arg_info->parms;
+ 	  for (; args; args = DECL_CHAIN (args))
+ 	    {
+ 	      tree type = TREE_TYPE (args);
+ 	      if (type && INTEGRAL_TYPE_P (type)
+-		  && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
+-		DECL_ARG_TYPE (args) = integer_type_node;
++		  && TYPE_PRECISION (type) < TYPE_PRECISION (mshort ? short_integer_type_node : integer_type_node))
++		DECL_ARG_TYPE (args) = mshort ? short_integer_type_node : integer_type_node;
+ 	    }
+ 	}
+     }
+@@ -8341,12 +8345,17 @@
+       && targetm.calls.promote_prototypes (TREE_TYPE (fndecl)))
+     {
+       tree args = DECL_ARGUMENTS (fndecl);
++
++		bool mshort=false;
++		if (lookup_attribute ("mshort_call", DECL_ATTRIBUTES (fndecl)))
++			mshort = true;
++
+       for (; args; args = DECL_CHAIN (args))
+ 	{
+ 	  tree type = TREE_TYPE (args);
+ 	  if (INTEGRAL_TYPE_P (type)
+-	      && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
+-	    DECL_ARG_TYPE (args) = integer_type_node;
++		  && TYPE_PRECISION (type) < TYPE_PRECISION (mshort ? short_integer_type_node : integer_type_node))
++		DECL_ARG_TYPE (args) = mshort ? short_integer_type_node : integer_type_node;
+ 	}
+     }
  
- #undef USER_LABEL_PREFIX
--#define USER_LABEL_PREFIX ""
-+#define USER_LABEL_PREFIX "_"
+--- gcc-4.8.2.orig/gcc/c/c-typeck.c	2013-01-24 16:59:44 +0000
++++ gcc-4.8.2/gcc/c/c-typeck.c	2014-03-11 20:53:58 +0000
+@@ -2884,9 +2884,36 @@
+    failure.  */
  
- /* config/m68k.md has an explicit reference to the program counter,
-    prefix this by the register prefix.  */
+ static int
++orig_convert_arguments (tree typelist, vec<tree, va_gc> *values,
++		   vec<tree, va_gc> *origtypes, tree function, tree fundecl);
++static int
+ convert_arguments (tree typelist, vec<tree, va_gc> *values,
+ 		   vec<tree, va_gc> *origtypes, tree function, tree fundecl)
+ {
++  bool mshort=false;
++  if (fundecl && TREE_CODE (fundecl) == FUNCTION_DECL && lookup_attribute ("mshort_call", DECL_ATTRIBUTES (fundecl)))
++    mshort = true;
++
++  tree orig_integer_type_node = integer_type_node;
++  tree orig_unsigned_type_node = unsigned_type_node;
++  if(mshort) {
++    integer_type_node = short_integer_type_node;
++    unsigned_type_node = short_unsigned_type_node;
++  }
++
++  int ret = orig_convert_arguments (typelist, values, origtypes, function, fundecl);
++
++  if(mshort) {
++    integer_type_node = orig_integer_type_node;
++    unsigned_type_node = orig_unsigned_type_node;
++  }
++  return ret;
++}
++static int
++orig_convert_arguments (tree typelist, vec<tree, va_gc> *values,
++		   vec<tree, va_gc> *origtypes, tree function, tree fundecl)
++{
++
+   tree typetail, val;
+   unsigned int parmnum;
+   bool error_args = false;
+--- gcc-4.8.2.orig/gcc/calls.c	2013-01-11 23:39:18 +0000
++++ gcc-4.8.2/gcc/calls.c	2014-03-11 20:54:14 +0000
+@@ -2186,9 +2186,33 @@
+    If the value is stored in TARGET then TARGET is returned.
+    If IGNORE is nonzero, then we ignore the value of the function call.  */
+ 
++static rtx
++orig_expand_call (tree exp, rtx target, int ignore);
++tree
++default_conversion (tree exp);
+ rtx
+ expand_call (tree exp, rtx target, int ignore)
+ {
++  tree fndecl = get_callee_fndecl (exp);
++  if (!fndecl) fndecl = TREE_TYPE (CALL_EXPR_FN (exp));
++    tree slb_export = lookup_attribute ("slb_export", DECL_ATTRIBUTES (fndecl));
++  bool mshort_call=false;
++  if (TREE_CODE (fndecl) == FUNCTION_DECL && lookup_attribute ("mshort_call", DECL_ATTRIBUTES (fndecl)))
++    mshort_call = true;
++
++  if (mshort_call)
++    target_flags ^= MASK_SHORT;
++
++  rtx ret = orig_expand_call (exp, target, ignore);
++
++  if (mshort_call)
++    target_flags ^= MASK_SHORT;
++  return ret;
++}
++
++static rtx
++orig_expand_call (tree exp, rtx target, int ignore)
++{
+   /* Nonzero if we are currently expanding a call.  */
+   static int currently_expanding_call = 0;
+ 
+diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.c
+--- gcc-4.8.2.orig/gcc/config/m68k/m68k.c	2013-01-10 20:38:27 +0000
++++ gcc-4.8.2/gcc/config/m68k/m68k.c	2014-03-08 11:53:53 +0000
+@@ -315,6 +315,10 @@
+     m68k_handle_fndecl_attribute, false },
+   { "interrupt_thread", 0, 0, true,  false, false,
+     m68k_handle_fndecl_attribute, false },
++  { "mshort_call", 0, 0, true,  false, false,
++    m68k_handle_fndecl_attribute, false },
++  { "slb_export", 1, 1, true,  false, false,
++    m68k_handle_fndecl_attribute, false },
+   { NULL,                0, 0, false, false, false, NULL, false }
+ };
+ 
+@@ -713,11 +717,16 @@
+   if (a != NULL_TREE)
+     return m68k_fk_interrupt_thread;
+ 
++  a = lookup_attribute ("mshort_call", DECL_ATTRIBUTES (func));
++  if (a != NULL_TREE)
++    return m68k_fk_mshort_call;
++
+   return m68k_fk_normal_function;
+ }
+ 
+ /* Handle an attribute requiring a FUNCTION_DECL; arguments as in
+    struct attribute_spec.handler.  */
++extern tree default_conversion (tree exp);
+ static tree
+ m68k_handle_fndecl_attribute (tree *node, tree name,
+ 			      tree args ATTRIBUTE_UNUSED,
+@@ -731,7 +740,32 @@
+       *no_add_attrs = true;
+     }
+ 
+-  if (m68k_get_function_kind (*node) != m68k_fk_normal_function)
++  if (!strcmp (IDENTIFIER_POINTER (name), "slb_export"))
++    {
++      if(TREE_CODE (TREE_TYPE (*node)) == FUNCTION_TYPE
++      && decl_function_context (*node) == 0) {
++		  	HOST_WIDE_INT pri;
++		  	tree arg;
++		  	arg = TREE_VALUE (args);
++		  	arg = default_conversion (arg);
++		  	if (!host_integerp (arg, /*pos=*/0)
++		      || !INTEGRAL_TYPE_P (TREE_TYPE (arg))) {
++		      warning (OPT_Wattributes, "%qE invalid slb_export slot --> attribute ignored", name);
++   	   	*no_add_attrs = true;
++		  	} else {
++			  	pri = tree_low_cst (arg, /*pos=*/0);
++		  		if (pri < 0 || pri > 127) {
++			      warning (OPT_Wattributes, "%qE invalid slb_export slot (get %i but 0 to 127 allowed) --> attribute ignored", name);
++	   	   	*no_add_attrs = true;
++		    	}
++			}
++		} else {
++	      warning (OPT_Wattributes, "%qE attribute ignored", name);
++   	   *no_add_attrs = true;
++		}
++      return NULL_TREE;
++    }
++  if (m68k_get_function_kind (*node) != m68k_fk_normal_function && m68k_get_function_kind (*node) != m68k_fk_mshort_call)
+     {
+       error ("multiple interrupt attributes not allowed");
+       *no_add_attrs = true;
+@@ -743,10 +777,80 @@
+       error ("interrupt_thread is available only on fido");
+       *no_add_attrs = true;
+     }
+-
++  if (PARM_BOUNDARY == 16 && !strcmp (IDENTIFIER_POINTER (name), "mshort_call"))
++    {
++     // silent ignored warning (OPT_Wattributes, "mshort_call is not available with -mshort");
++      *no_add_attrs = true;
++    }
+   return NULL_TREE;
+ }
++static HOST_WIDE_INT
++m68k_get_slb_export_slot(tree fndecl) {
++	tree slb_export = lookup_attribute ("slb_export", DECL_ATTRIBUTES (fndecl));
++	if(slb_export) {
++     tree arg = default_conversion(TREE_VALUE(TREE_VALUE(slb_export)));
++     return tree_low_cst (arg, /*pos=*/0);
++	}
++	return -1;
++}
++
++static char m68k_slb_export_tab[128];
++static int m68k_slb_export_tab_valid=0;
++
++void
++m68k_finish_slb_export ()
++{
++  char buf[32];
++  bool dummies = false;
++  if(!m68k_slb_export_tab_valid)
++    return;
++  m68k_slb_export_tab_valid = 0;
++  for(int slot=127; slot>=0; --slot) {
++    if(m68k_slb_export_tab[slot])
++		dummies = true;	 
++    if(!m68k_slb_export_tab[slot] && dummies) {
++      sprintf (buf, "%s.%.3u", ".gnu.linkonce.slb_export", (unsigned)slot);
++      switch_to_section (get_section (buf, SECTION_WRITE, NULL));
++//      ASM_WEAKEN_LABEL
++      assemble_align (POINTER_SIZE);
++      sprintf (buf, "%s_%.3u", ".slb_export", (unsigned)slot);
++      fprintf (asm_out_file, "\t.weak %s\n\t.long %s\n", buf, buf);
++	 }	 
++  }
++}
+ 
++void
++m68k_compute_slb_export (tree fndecl)
++{
++  char section[32], label[32];
++
++  rtx symbol = XEXP (DECL_RTL (fndecl), 0);
++  const char *name = XSTR (symbol, 0);
++
++  HOST_WIDE_INT slot = m68k_get_slb_export_slot(fndecl);
++  if(slot<0) return;
++
++  if(!m68k_slb_export_tab_valid) memset(m68k_slb_export_tab, 0, sizeof(m68k_slb_export_tab));
++  m68k_slb_export_tab_valid = m68k_slb_export_tab[slot] = 1;
++
++  /* ??? This only works reliably with the GNU linker.  */
++  sprintf (section, "%s.%.3u", ".gnu.linkonce.slb_export", (unsigned)slot);
++  sprintf (label, "%s_%.3u", ".slb_export", (unsigned)slot);
++
++  fprintf (asm_out_file, "\t.globl %s\n\t.set %s, ", label, label);
++  assemble_name(asm_out_file, name);
++  fputc ('\n', asm_out_file);
++
++  //  targetm.asm_out.globalize_label (asm_out_file, name);
++  switch_to_section (get_section (section, SECTION_WRITE, NULL));
++  assemble_align (POINTER_SIZE);
++//  if(slot > 1) {
++ //   sprintf (buf, "%s_%.3u", ".slb_export", (unsigned)slot-1);
++//    fprintf (asm_out_file, "\t.globl %s\n", buf);
++//  }
++  fprintf (asm_out_file, "\t.long %s\n", label);
++//  assemble_integer (symbol, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
++}
+ static void
+ m68k_compute_frame_layout (void)
+ {
+diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.h gcc-4.8.2/gcc/config/m68k/m68k.h
+--- gcc-4.8.2.orig/gcc/config/m68k/m68k.h	2013-01-10 20:38:27 +0000
++++ gcc-4.8.2/gcc/config/m68k/m68k.h	2014-03-08 17:12:39 +0000
+@@ -130,7 +130,10 @@
+ 	}								\
+ 									\
+       if (TARGET_68881)							\
+-	builtin_define ("__HAVE_68881__");				\
++	{								\
++	  builtin_define ("__HAVE_68881__");				\
++	  builtin_define ("__M68881__"); /* Non-standard */		\
++	}								\
+ 									\
+       if (TARGET_COLDFIRE)						\
+ 	{								\
+@@ -946,7 +949,8 @@
+ {
+   m68k_fk_normal_function,
+   m68k_fk_interrupt_handler,
+-  m68k_fk_interrupt_thread
++  m68k_fk_interrupt_thread,
++  m68k_fk_mshort_call
+ };
+ 
+ /* Variables in m68k.c; see there for details.  */
+@@ -977,4 +981,7 @@
+ extern int m68k_sched_address_bypass_p (rtx, rtx);
+ extern int m68k_sched_indexed_address_bypass_p (rtx, rtx);
+ 
++extern void m68k_compute_slb_export (tree fndecl);
++extern void m68k_finish_slb_export ();
++
+ #define CPU_UNITS_QUERY 1
 diff -aurN gcc-4.8.2.orig/gcc/config/m68k/math-68881.h gcc-4.8.2/gcc/config/m68k/math-68881.h
 --- gcc-4.8.2.orig/gcc/config/m68k/math-68881.h	2004-02-09 00:48:13 +0000
 +++ gcc-4.8.2/gcc/config/m68k/math-68881.h	2014-02-19 20:40:46 +0000
@@ -421,7 +707,7 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/math-68881.h gcc-4.8.2/gcc/config/m68k
 diff -aurN gcc-4.8.2.orig/gcc/config/m68k/mint.h gcc-4.8.2/gcc/config/m68k/mint.h
 --- gcc-4.8.2.orig/gcc/config/m68k/mint.h	1970-01-01 00:00:00 +0000
 +++ gcc-4.8.2/gcc/config/m68k/mint.h	2014-02-19 20:40:46 +0000
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,188 @@
 +/* Definitions of target machine for GNU compiler.
 +   Atari ST TOS/MiNT.
 +   Copyright (C) 1994, 1995, 2007, 2008, 2009, 2010, 2011
@@ -461,6 +747,11 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/mint.h gcc-4.8.2/gcc/config/m68k/mint.
 +#undef LOCAL_LABEL_PREFIX
 +#define LOCAL_LABEL_PREFIX "."
 +
++/* The prefix to add to user-visible assembler symbols.  */
++
++#undef USER_LABEL_PREFIX
++#define USER_LABEL_PREFIX "_"
++
 +#undef ASM_COMMENT_START
 +#define ASM_COMMENT_START "|"
 +
@@ -481,6 +772,8 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/mint.h gcc-4.8.2/gcc/config/m68k/mint.
 +    }						\
 +  while (0)
 +
++#undef TARGET_OBJFMT_CPP_BUILTINS
++#define TARGET_OBJFMT_CPP_BUILTINS() do { builtin_define ("__ELF__"); } while (0)
 +/* The following defines are nonstandard
 +   and are kept only for compatibility
 +   with older versions of GCC for MiNT.  */

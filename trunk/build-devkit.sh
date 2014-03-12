@@ -364,6 +364,7 @@ fi
 # Build and install devkit components
 #---------------------------------------------------------------------------------
 if [ -f $scriptdir/build-gcc.sh ]; then . $scriptdir/build-gcc.sh || { echo "Error building toolchain"; exit 1; }; cd $BUILDSCRIPTDIR; fi
+if [ -f $scriptdir/build-portlibs.sh ]; then . $scriptdir/build-portlibs.sh || { echo "Error building portlibs"; exit 1; }; cd $BUILDSCRIPTDIR; fi
 exit;
 if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo "Error building crtls"; exit 1; }; cd $BUILDSCRIPTDIR; fi
 if [ -f $scriptdir/build-tools.sh ]; then . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR; fi
