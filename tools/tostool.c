@@ -63,8 +63,27 @@ typedef struct {
 
 #define SHF_ALLOC		2
 
+#define ELF32_R_TYPE(x) ((x) & 0xff)
 #define R_68K_32		1
 #define R_68K_PC32	4
+
+#define ELF32_R_SYM(x)  ((x) >> 8)
+
+
+#define ELF32_ST_BIND(x)  ((x) >> 4)
+#define STB_LOCAL  0
+#define STB_GLOBAL 1
+#define STB_WEAK   2
+
+#define ELF32_ST_TYPE(x)  ((x) & 0x0f)
+#define STT_NOTYPE  0
+#define STT_OBJECT  1
+#define STT_FUNC    2
+#define STT_SECTION 3
+#define STT_FILE    4
+#define STT_COMMON  5
+#define STT_TLS     6
+
 
 typedef struct {
 	uint32_t	p_type;
@@ -372,19 +391,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		die("section strtab index out of range\n");
 
 	map->shstrtab = (char*)read_elf_segment(map, shstrndx, "reading ELF section .shstrtab", 0);
-/*
-	uint32_t shstrnum = swap32(map->shdrs[shstrndx].s_size);
-	uint32_t shstroff = swap32(map->shdrs[shstrndx].s_offset);
 
-	if((map->shstrtab = (char*)malloc(shstrnum))==0)
-		die("failed to allocate memory\n");
-
-	if(fseek(map->elf, shstroff, SEEK_SET) < 0)
-		ferrordie(map->elf, "reading ELF section .shstrtab");
-	read = fread(map->shstrtab, 1, shstrnum, map->elf);
-	if(read != shstrnum)
-		ferrordie(map->elf, "reading ELF section .shstrtab");
-*/
 	//////////////////////////////////////////////////////////////////////////
 	// section .mint_prg_info
 	//////////////////////////////////////////////////////////////////////////
@@ -397,6 +404,8 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	read = fread(&map->header, sizeof(map->header), 1, map->elf);
 	if(read != 1)
 		ferrordie(map->elf, "reading section .mint_prg_info");
+	if(map->is_slb && map->header.ph_blen==0)
+		map->header.ph_blen=swap32(2); // MagiC SLB dont work with empty bss secment
 
 	//////////////////////////////////////////////////////////////////////////
 	// sections .symtab
@@ -455,28 +464,29 @@ void read_elf_segments(TOS_map *map, const char *elf)
 					ferrordie(map->elf, "reading rela's");
 				for(j=0; j <s_size/sizeof(Elf32_Rela); j++) 
 				{
-					int r_info = (swap32(tmp_relas[j].r_info) & 0xff);
-					if (r_info == R_68K_32) {
+					uint32_t r_type = ELF32_R_TYPE(swap32(tmp_relas[j].r_info));
+					uint32_t r_offset = swap32(tmp_relas[j].r_offset);
+					if (r_type == R_68K_32) {
 						uint32_t use_rela = 1;
-						int warn=0;
-						uint32_t r_offset = swap32(tmp_relas[j].r_offset);
+						uint32_t r_sym = ELF32_R_SYM(swap32(tmp_relas[j].r_info));
 						if(syms && sym_names && tmp_relas[j].r_addend == 0) {
-							const char *sym_name = &sym_names[swap32(syms[swap32(tmp_relas[j].r_info)>>8].st_name)];
-							#define isdigit(c) ('9'>=(c) && (c)>='0')
-							if(!strncmp(sym_name, ".slb_export_", 12) && isdigit(sym_name[12]) && isdigit(sym_name[13]) && isdigit(sym_name[14])) {
-								if(!map->is_slb && !warn++)
-									fprintf(stderr, "Warning: Found slb_export but its seems not a slb\n");
-								/* ignore relas for empty slb_export slots */
+							Elf32_Sym *sym = &syms[r_sym];
+							const char *sym_name = &sym_names[swap32(sym->st_name)];
+							
+							if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
+								/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
 								if(fseek(map->elf, map->programm_off + r_offset, SEEK_SET) < 0)
-									ferrordie(map->elf, "reading slb_export entry");
+									ferrordie(map->elf, "reading unrefernced weak");
 								if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
-									ferrordie(map->elf, "reading slb_export entry");
+									ferrordie(map->elf, "reading unrefernced weak");
+								if(!use_rela && verbosity >=2)
+									fprintf(stderr, "ignore relocation for unreferenced week symbol %s @0x%X\n", sym_name, r_offset);
 							}
 						}
 						if(use_rela)
 							*rela_end++ = r_offset;
-					} else if(r_info != R_68K_PC32)
-						fprintf(stderr, "Warning: Found relocation other than R_68K_32 or R_68K_PC32 (r_info=%i)\n", r_info);
+					} else if(r_type != R_68K_PC32)
+						fprintf(stderr, "Warning: Found relocation other than R_68K_32 or R_68K_PC32 (r_type=%i)\n", r_type);
 				}
 				free(tmp_relas);
 			}

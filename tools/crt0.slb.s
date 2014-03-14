@@ -17,7 +17,6 @@
 	.long 0						/* Reserved	*/	
 	.long 0						/* Reserved	*/	
 	.long 0						/* Reserved	*/	
-	.long 0						/* Reserved	*/	
 	.text												
 
 slb_info:											
