@@ -202,14 +202,12 @@ diff -aurN gcc-4.8.2.orig/gcc/c/c-decl.c gcc-4.8.2/gcc/c/c-decl.c
    bool error_args = false;
 --- gcc-4.8.2.orig/gcc/calls.c	2013-01-11 23:39:18 +0000
 +++ gcc-4.8.2/gcc/calls.c	2014-03-11 20:54:14 +0000
-@@ -2186,9 +2186,33 @@
+@@ -2186,9 +2186,31 @@
     If the value is stored in TARGET then TARGET is returned.
     If IGNORE is nonzero, then we ignore the value of the function call.  */
  
 +static rtx
 +orig_expand_call (tree exp, rtx target, int ignore);
-+tree
-+default_conversion (tree exp);
  rtx
  expand_call (tree exp, rtx target, int ignore)
  {
@@ -236,9 +234,8 @@ diff -aurN gcc-4.8.2.orig/gcc/c/c-decl.c gcc-4.8.2/gcc/c/c-decl.c
    /* Nonzero if we are currently expanding a call.  */
    static int currently_expanding_call = 0;
  
-diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.c
 --- gcc-4.8.2.orig/gcc/config/m68k/m68k.c	2013-01-10 20:38:27 +0000
-+++ gcc-4.8.2/gcc/config/m68k/m68k.c	2014-03-08 11:53:53 +0000
++++ gcc-4.8.2/gcc/config/m68k/m68k.c	2014-03-16 19:41:07 +0000
 @@ -315,6 +315,10 @@
      m68k_handle_fndecl_attribute, false },
    { "interrupt_thread", 0, 0, true,  false, false,
@@ -250,7 +247,7 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.
    { NULL,                0, 0, false, false, false, NULL, false }
  };
  
-@@ -713,11 +717,16 @@
+@@ -713,6 +717,10 @@
    if (a != NULL_TREE)
      return m68k_fk_interrupt_thread;
  
@@ -261,47 +258,36 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.
    return m68k_fk_normal_function;
  }
  
- /* Handle an attribute requiring a FUNCTION_DECL; arguments as in
-    struct attribute_spec.handler.  */
-+extern tree default_conversion (tree exp);
- static tree
- m68k_handle_fndecl_attribute (tree *node, tree name,
- 			      tree args ATTRIBUTE_UNUSED,
-@@ -731,7 +740,32 @@
+@@ -731,7 +739,27 @@
        *no_add_attrs = true;
      }
  
 -  if (m68k_get_function_kind (*node) != m68k_fk_normal_function)
-+  if (!strcmp (IDENTIFIER_POINTER (name), "slb_export"))
-+    {
-+      if(TREE_CODE (TREE_TYPE (*node)) == FUNCTION_TYPE
-+      && decl_function_context (*node) == 0) {
-+		  	HOST_WIDE_INT pri;
-+		  	tree arg;
-+		  	arg = TREE_VALUE (args);
-+		  	arg = default_conversion (arg);
-+		  	if (!host_integerp (arg, /*pos=*/0)
-+		      || !INTEGRAL_TYPE_P (TREE_TYPE (arg))) {
-+		      warning (OPT_Wattributes, "%qE invalid slb_export slot --> attribute ignored", name);
-+   	   	*no_add_attrs = true;
-+		  	} else {
-+			  	pri = tree_low_cst (arg, /*pos=*/0);
-+		  		if (pri < 0 || pri > 127) {
-+			      warning (OPT_Wattributes, "%qE invalid slb_export slot (get %i but 0 to 127 allowed) --> attribute ignored", name);
-+	   	   	*no_add_attrs = true;
-+		    	}
-+			}
-+		} else {
-+	      warning (OPT_Wattributes, "%qE attribute ignored", name);
-+   	   *no_add_attrs = true;
-+		}
-+      return NULL_TREE;
++  if (!strcmp (IDENTIFIER_POINTER (name), "slb_export")) {
++    if(TREE_CODE (TREE_TYPE (*node)) == FUNCTION_TYPE && decl_function_context (*node) == 0) {
++      tree arg;
++      arg = TREE_VALUE (args);
++      if(TREE_CODE(arg) != INTEGER_CST) {
++        warning (OPT_Wattributes, "%qE invalid slb_export slot (must be an integer beetween 0 and 127) --> attribute ignored", name);
++        *no_add_attrs = true;
++      } else {
++        HOST_WIDE_INT val = int_cst_value(arg);
++        if ( 0 > val || val > 127) {
++          warning (OPT_Wattributes, "%qE invalid slb_export slot (get %i but must be beetween 0 and 127) --> attribute ignored", name, val);
++          *no_add_attrs = true;
++        }
++      }
++    } else {
++      warning (OPT_Wattributes, "%qE attribute ignored", name);
++      *no_add_attrs = true;
 +    }
++    return NULL_TREE;
++  }
 +  if (m68k_get_function_kind (*node) != m68k_fk_normal_function && m68k_get_function_kind (*node) != m68k_fk_mshort_call)
      {
        error ("multiple interrupt attributes not allowed");
        *no_add_attrs = true;
-@@ -743,10 +777,80 @@
+@@ -743,10 +771,72 @@
        error ("interrupt_thread is available only on fido");
        *no_add_attrs = true;
      }
@@ -315,12 +301,11 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.
  }
 +static HOST_WIDE_INT
 +m68k_get_slb_export_slot(tree fndecl) {
-+	tree slb_export = lookup_attribute ("slb_export", DECL_ATTRIBUTES (fndecl));
-+	if(slb_export) {
-+     tree arg = default_conversion(TREE_VALUE(TREE_VALUE(slb_export)));
-+     return tree_low_cst (arg, /*pos=*/0);
-+	}
-+	return -1;
++  tree slb_export = lookup_attribute ("slb_export", DECL_ATTRIBUTES (fndecl));
++  if(slb_export) {
++    return int_cst_value (TREE_VALUE(TREE_VALUE(slb_export)));
++  }
++  return -1;
 +}
 +
 +static char m68k_slb_export_tab[128];
@@ -336,23 +321,22 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.
 +  m68k_slb_export_tab_valid = 0;
 +  for(int slot=127; slot>=0; --slot) {
 +    if(m68k_slb_export_tab[slot])
-+		dummies = true;	 
++      dummies = true;	 
 +    if(!m68k_slb_export_tab[slot] && dummies) {
 +      sprintf (buf, "%s.%.3u", ".gnu.linkonce.slb_export", (unsigned)slot);
 +      switch_to_section (get_section (buf, SECTION_WRITE, NULL));
-+//      ASM_WEAKEN_LABEL
 +      assemble_align (POINTER_SIZE);
 +      sprintf (buf, "%s_%.3u", ".slb_export", (unsigned)slot);
 +      fprintf (asm_out_file, "\t.weak %s\n\t.long %s\n", buf, buf);
-+	 }	 
++    }
 +  }
 +}
- 
++
 +void
 +m68k_compute_slb_export (tree fndecl)
 +{
 +  char section[32], label[32];
-+
+ 
 +  rtx symbol = XEXP (DECL_RTL (fndecl), 0);
 +  const char *name = XSTR (symbol, 0);
 +
@@ -370,15 +354,9 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.c gcc-4.8.2/gcc/config/m68k/m68k.
 +  assemble_name(asm_out_file, name);
 +  fputc ('\n', asm_out_file);
 +
-+  //  targetm.asm_out.globalize_label (asm_out_file, name);
 +  switch_to_section (get_section (section, SECTION_WRITE, NULL));
 +  assemble_align (POINTER_SIZE);
-+//  if(slot > 1) {
-+ //   sprintf (buf, "%s_%.3u", ".slb_export", (unsigned)slot-1);
-+//    fprintf (asm_out_file, "\t.globl %s\n", buf);
-+//  }
 +  fprintf (asm_out_file, "\t.long %s\n", label);
-+//  assemble_integer (symbol, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
 +}
  static void
  m68k_compute_frame_layout (void)
