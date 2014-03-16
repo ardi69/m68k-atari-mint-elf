@@ -416,6 +416,21 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.h gcc-4.8.2/gcc/config/m68k/m68k.
 +extern void m68k_finish_slb_export ();
 +
  #define CPU_UNITS_QUERY 1
+diff -aurN gcc-4.8.2.orig/gcc/config/m68k/m68k.opt gcc-4.8.2/gcc/config/m68k/m68k.opt
+--- gcc-4.8.2.orig/gcc/config/m68k/m68k.opt	2013-01-10 20:38:27 +0000
++++ gcc-4.8.2/gcc/config/m68k/m68k.opt	2014-03-16 11:56:48 +0000
+@@ -193,3 +193,11 @@
+ mxtls
+ Target Report Mask(XTLS)
+ Support TLS segment larger than 64K
++
++slb
++Target 
++create a shared library (dummy -> currently without effect)
++
++cmini
++Target 
++link with libcmini instead with libc
 diff -aurN gcc-4.8.2.orig/gcc/config/m68k/math-68881.h gcc-4.8.2/gcc/config/m68k/math-68881.h
 --- gcc-4.8.2.orig/gcc/config/m68k/math-68881.h	2004-02-09 00:48:13 +0000
 +++ gcc-4.8.2/gcc/config/m68k/math-68881.h	2014-02-19 20:40:46 +0000
@@ -792,7 +807,7 @@ diff -aurN gcc-4.8.2.orig/gcc/config/m68k/mint.h gcc-4.8.2/gcc/config/m68k/mint.
 +  "%{mshort:-D__MSHORT__}"
 +
 +#define STARTFILE_SPEC	"%{pg|p|profile:gcrt0.o%s;:crt0.o%s}"
-+#define LIB_SPEC	"-lc"
++#define LIB_SPEC	"%{cmini:-lcmini;:-lc}"
 +
 +/* Every structure or union's size must be a multiple of 2 bytes.  */
 +#define STRUCTURE_SIZE_BOUNDARY 16
