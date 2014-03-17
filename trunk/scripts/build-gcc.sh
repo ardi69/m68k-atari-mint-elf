@@ -137,7 +137,7 @@ fi
 #---------------------------------------------------------------------------------
 # build and install mintlib
 #---------------------------------------------------------------------------------
-cd $target/../$MINTLIB_SRCDIR
+cd $BUILDSCRIPTDIR/$MINTLIB_SRCDIR
 if [ ! -f installed-mintlib ]
 then
   $MAKE CFLAGS="-O2" CROSS=yes MINTLIB_INSTALLDIR=$INSTALLDIR/devkitMINT/$target install || { echo "Error building mintlib"; exit 1; }
@@ -145,14 +145,35 @@ then
 fi
 
 #---------------------------------------------------------------------------------
+# build and install libcmini
+#---------------------------------------------------------------------------------
+cd $BUILDSCRIPTDIR/libcmini
+if [ ! -f build-libcmini ]
+then
+  $MAKE MINTLIB_COMAPTIBLE=Y TESTS="" DEVKITMINT="" || { echo "Error building libcmini"; exit 1; }
+  touch build-libcmini
+fi
+
+if [ ! -f installed-libcmini ]
+then
+  for f in . m68020-60 m5475; do
+    cp -v $f/libcmini.a $INSTALLDIR/devkitMINT/$target/lib/$f/
+    cp -v $f/mshort/libcmini.a $INSTALLDIR/devkitMINT/$target/lib/$f/mshort/
+    # because mintlib no more supports -mshort we use libcmini as libc
+    cp -v $f/mshort/libcmini.a $INSTALLDIR/devkitMINT/$target/lib/$f/mshort/libc.a
+
+    cp -v $f/libiiomini.a $INSTALLDIR/devkitMINT/$target/lib/$f/
+    cp -v $f/mshort/libiiomini.a $INSTALLDIR/devkitMINT/$target/lib/$f/mshort/
+  done
+  touch installed-libcmini
+fi
+
+
+#---------------------------------------------------------------------------------
 # build and install portable math lib
 #---------------------------------------------------------------------------------
-cd $BUILDSCRIPTDIR
-#mkdir -p $target/pml
-#echo $target/../$PMLLIB_SRCDIR/pmlsrc
-cd $target/../$PMLLIB_SRCDIR/pmlsrc
+cd $BUILDSCRIPTDIR/$PMLLIB_SRCDIR/pmlsrc
 
-#PMLINSTALL_DIR=$BUILDSCRIPTDIR/$target/pml
 PMLINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
 
 if [ ! -f installed-pml ]
@@ -213,10 +234,7 @@ fi
 # build and install gemlib
 #---------------------------------------------------------------------------------
 
-cd $BUILDSCRIPTDIR
-#mkdir -p $target/pml
-#echo $target/../$PMLLIB_SRCDIR/pmlsrc
-cd $target/../$GEMLIB_SRCDIR/gemlib
+cd $BUILDSCRIPTDIR/$GEMLIB_SRCDIR/gemlib
 
 GEMLIBINSTALL_DIR=$INSTALLDIR/devkitMINT/$target
 
@@ -239,8 +257,7 @@ fi
 # build and install the final compiler
 #---------------------------------------------------------------------------------
 
-cd $BUILDSCRIPTDIR
-cd $target/gcc
+cd $BUILDSCRIPTDIR/$target/gcc
 
 if [ ! -f built-gcc-stage2 ]
 then
