@@ -191,13 +191,13 @@ typedef struct {
 	Elf32_Shdr	*shdrs;
 	uint16_t		shnum;
 	char			*shstrtab;
-	uint32_t		programm_off;
-	uint32_t		programm_size;
+	uint32_t		program_off;
+	uint32_t		program_size;
 	uint32_t		stack_pos;
 	int32_t		stack_size;
 	uint32_t		slb_name_off;
 	uint32_t		slb_version;
-	uint16_t		have_ext_programm_header;
+	uint16_t		have_ext_program_header;
 	uint16_t		is_slb;
 	uint8_t		*relas;
 	uint32_t		rela_size;
@@ -308,7 +308,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		fprintf(stderr, "Valid ELF header found\n");
 
 	//////////////////////////////////////////////////////////////////////////
-	// programm header
+	// program header
 	//////////////////////////////////////////////////////////////////////////
 	uint16_t phnum = swap16(ehdr.e_phnum);
 	uint32_t phoff = swap32(ehdr.e_phoff);
@@ -328,17 +328,17 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		ferrordie(map->elf, "reading ELF program headers");
 
 	if(swap32(phdr.p_type) != PT_LOAD)
-		die("wrong programm header type\n");
-	map->programm_off = swap32(phdr.p_offset);
-	map->programm_size = swap32(phdr.p_filesz);
+		die("wrong program header type\n");
+	map->program_off = swap32(phdr.p_offset);
+	map->program_size = swap32(phdr.p_filesz);
 
 	uint32_t head[2];
-	if(fseek(map->elf, map->programm_off, SEEK_SET) < 0)
+	if(fseek(map->elf, map->program_off, SEEK_SET) < 0)
 		ferrordie(map->elf, "reading program headers");
 	if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
 		ferrordie(map->elf, "reading program headers");
 	if(swap32(head[0]) == 0x203a001a || swap32(head[1]) == 0x4efb08fa) {
-		map->have_ext_programm_header=0xe4;
+		map->have_ext_program_header=0xe4;
 		if(fseek(map->elf, 0xe4-8, SEEK_CUR) < 0)
 			ferrordie(map->elf, "reading program headers");
 		if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
@@ -347,17 +347,17 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	if(swap32(head[0]) == 0x70004afc) { // slb
 		map->is_slb = 1;
 
-		if(fseek(map->elf, map->programm_off+swap32(head[1]), SEEK_SET) < 0)
+		if(fseek(map->elf, map->program_off+swap32(head[1]), SEEK_SET) < 0)
 			ferrordie(map->elf, "reading slb_info");
 		if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
-			ferrordie(map->elf, "reading slb_name");
+			ferrordie(map->elf, "reading slb_info");
 
-		if(fseek(map->elf, map->programm_off+swap32(head[0]), SEEK_SET) < 0)
+		if(fseek(map->elf, map->program_off+swap32(head[0]), SEEK_SET) < 0)
 			ferrordie(map->elf, "reading slb_name");
 		if(fread(&map->slb_name_off, sizeof(uint32_t), 1, map->elf)!=1)
 			ferrordie(map->elf, "reading slb_name");
 
-		if(fseek(map->elf, map->programm_off+swap32(head[1]), SEEK_SET) < 0)
+		if(fseek(map->elf, map->program_off+swap32(head[1]), SEEK_SET) < 0)
 			ferrordie(map->elf, "reading slb_version");
 		if(fread(&map->slb_version, sizeof(uint32_t), 1, map->elf)!=1)
 			ferrordie(map->elf, "reading slb_version");
@@ -429,7 +429,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				map->stack_pos = swap32(syms[i].st_value);
 		}
 		if(map->stack_pos) {
-			if(fseek(map->elf, map->programm_off + map->stack_pos, SEEK_SET) < 0)
+			if(fseek(map->elf, map->program_off + map->stack_pos, SEEK_SET) < 0)
 				ferrordie(map->elf, "reading _stksize");
 			if(fread(&map->stack_size, sizeof(uint32_t), 1, map->elf)!=1)
 				ferrordie(map->elf, "reading _stksize");
@@ -475,7 +475,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 							
 							if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
 								/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
-								if(fseek(map->elf, map->programm_off + r_offset, SEEK_SET) < 0)
+								if(fseek(map->elf, map->program_off + r_offset, SEEK_SET) < 0)
 									ferrordie(map->elf, "reading unrefernced weak");
 								if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
 									ferrordie(map->elf, "reading unrefernced weak");
@@ -580,7 +580,7 @@ void write_tos(TOS_map *map, const char *tos)
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Writing TEXT & DATA segment ...\n");
-	fcpy(tosf, map->elf, ftell(tosf), map->programm_off, map->programm_size);
+	fcpy(tosf, map->elf, ftell(tosf), map->program_off, map->program_size);
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Writing tpa relocation ...\n");
@@ -596,9 +596,9 @@ void write_tos(TOS_map *map, const char *tos)
 		ferrordie(tosf, "writing tpa relocation");
 
 	if(map->is_slb) {
-		if(map->have_ext_programm_header)
+		if(map->have_ext_program_header)
 			fprintf(stderr, "warning: shared library with a.out-mintprg header detected\n         maybe not work with MagiC!\n");
-		if(fseek(tosf, 0x1c + 0x4 + map->have_ext_programm_header, SEEK_SET) < 0)
+		if(fseek(tosf, 0x1c + 0x4 + map->have_ext_program_header, SEEK_SET) < 0)
 			ferrordie(tosf, "fix slb-stuff");
 
 		if(fwrite(&map->slb_name_off, sizeof(uint32_t), 1, tosf) != 1)
@@ -609,7 +609,7 @@ void write_tos(TOS_map *map, const char *tos)
 
 	if(map->stack_pos) {
 		uint32_t val;
-		if(map->have_ext_programm_header) {
+		if(map->have_ext_program_header) {
 			if(fseek(tosf, 0x1c + 0x30, SEEK_SET) < 0)
 				ferrordie(tosf, "writing _stksize pos");
 			val = swap32(map->stack_pos+0x1c);
