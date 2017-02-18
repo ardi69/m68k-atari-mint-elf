@@ -1,6 +1,6 @@
 /* Default linker script, for normal executables */
 OUTPUT_FORMAT(elf32-m68k)
-STARTUP("crt0.slb.o");
+
 SECTIONS
 {
   .mint_prg_info (INFO) :
@@ -40,6 +40,7 @@ SECTIONS
     .slb_export_end = .;
 
     /* .text */
+	*(.text)
     *(.text.unlikely .text.*_unlikely)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)
@@ -68,6 +69,9 @@ SECTIONS
     __etext = .;
     .data_start = .;
     *(.data) *(.data.*) *(.gnu.linkonce.d.*) *(.gcc_except_table) *(.gcc_except_table.*)
+    ___EH_FRAME_BEGIN__ = . ;
+    *(.eh_fram*)
+    ___EH_FRAME_END__ = . ;
   }
   .bss . :
   {

@@ -8,17 +8,18 @@ SECTIONS
     LONG(.data_start - .text_start );
     LONG(.bss_start - .data_start );
     LONG(.prg_end - .bss_start );
-	 LONG(0);
-	 LONG(0);
-	 LONG(0);
-	 SHORT(0);
+    LONG(0);
+    LONG(0);
+    LONG(0);
+    SHORT(0);
   }
   .text :
   {
-	 .text_start = .;
-	 .entry = .;
+    .text_start = .;
+    .entry = .;
+    KEEP(*(.text.entry.mint)) KEEP(*crt0*.o(.text)) KEEP(*startup.o(.text))
+    .startup_size = . - .entry;
 
-    KEEP(*(.text.entry.mint))
     *(.text.unlikely .text.*_unlikely)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)
@@ -46,6 +47,9 @@ SECTIONS
     __etext = .;
     .data_start = .;
     *(.data) *(.data.*) *(.gnu.linkonce.d.*) *(.gcc_except_table) *(.gcc_except_table.*)
+    ___EH_FRAME_BEGIN__ = . ;
+    *(.eh_fram*)
+    ___EH_FRAME_END__ = . ;
   }
   .bss . :
   {

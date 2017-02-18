@@ -3,14 +3,14 @@
 #include <stdint.h>
 #include <errno.h>
 #include <string.h>
+#pragma pack(push, 1)
+
 #ifdef _MSC_VER
-#	define __attribute__(a)
-#	pragma pack(push, 1)
 #	ifdef WIN32
 #		define BIG_ENDIAN	4321
 #		define LITTLE_ENDIAN	1234
 #		define BYTE_ORDER	LITTLE_ENDIAN
-#	elif !defined(BYTE_ORDER) || !defined(BIG_ENDIAN) 
+#	elif !defined(BYTE_ORDER) || !defined(BIG_ENDIAN)
 #		error "BYTE_ORDER and/or BIG_ENDIAN is not defined"
 #	endif
 #else
@@ -45,27 +45,29 @@ typedef struct {
 	uint16_t		e_shstrndx;
 } Elf32_Ehdr;
 
-#define EI_CLASS		4
+#define EI_CLASS	4
 #define EI_DATA		5
 #define EI_VERSION	6
-#define EI_PAD			7
-#define EI_NIDENT		16
+#define EI_PAD		7
+#define EI_NIDENT	16
 
 #define ELFCLASS32	1
 #define ELFDATA2MSB	2
 #define EV_CURRENT	1
 
 #define ET_EXEC		2
-#define EM_68K			4
+#define EM_68K		4
 
 #define SHT_SYMTAB	2
-#define SHT_RELA		4
+#define SHT_RELA	4
 
-#define SHF_ALLOC		2
+#define SHF_ALLOC	2
 
 #define ELF32_R_TYPE(x) ((x) & 0xff)
-#define R_68K_32		1
+#define R_68K_32	1
 #define R_68K_PC32	4
+#define R_68K_PC16	5
+#define R_68K_PC8	6
 
 #define ELF32_R_SYM(x)  ((x) >> 8)
 
@@ -96,7 +98,7 @@ typedef struct {
 	uint32_t	p_align;
 } Elf32_Phdr;
 
-typedef struct 
+typedef struct
 {
 	uint32_t	s_name;
 	uint32_t	s_type;
@@ -113,16 +115,16 @@ typedef struct
 typedef struct {
 	uint32_t	r_offset;
 	uint32_t	r_info;
-	int32_t	r_addend;
+	int32_t		r_addend;
 } Elf32_Rela;
 
 typedef struct {
-	uint32_t		st_name;
-	uint32_t		st_value;
-	uint32_t		st_size;
+	uint32_t	st_name;
+	uint32_t	st_value;
+	uint32_t	st_size;
 	uint8_t		st_info;
 	uint8_t		st_other;
-	uint16_t		st_shndx;
+	uint16_t	st_shndx;
 } Elf32_Sym;
 
 #define PT_LOAD	1
@@ -183,57 +185,61 @@ typedef struct
 	uint32_t ph_res1;          /* reserviert, sollte 0 sein        */
 	uint32_t ph_prgflags;      /* Programmflags                    */
 	uint16_t ph_absflag;       /* 0 = Relozierungsinf. vorhanden   */
-} __attribute__((packed)) TOS_hdr;
+} TOS_hdr;
 
 
 typedef struct {
 	TOS_hdr		header;
+	uint32_t	e_entry;
 	Elf32_Shdr	*shdrs;
-	uint16_t		shnum;
-	char			*shstrtab;
-	uint32_t		program_off;
-	uint32_t		program_size;
-	uint32_t		stack_pos;
+	uint16_t	shnum;
+	char		*shstrtab;
+	uint32_t	program_off;
+	uint32_t	program_size;
+	uint32_t	stack_pos;
 	int32_t		stack_size;
-	uint32_t		slb_name_off;
-	uint32_t		slb_version;
-	uint16_t		have_ext_program_header;
-	uint16_t		is_slb;
+	uint32_t	slb_version_pos;
+	uint16_t	have_ext_program_header;
+	uint16_t	is_slb;
 	uint8_t		*relas;
-	uint32_t		rela_size;
+	uint32_t	rela_size;
 	FILE *elf;
 } TOS_map;
 
 
-void usage(const char *name)
-{
-	fprintf(stderr, "Usage: %s [-h] [-v] [--] elf-file tos-file\n", name);
-	fprintf(stderr, " Convert an ELF file to a TOS file (by segments)\n");
-	fprintf(stderr, " Options:\n");
-	fprintf(stderr, "  -h                          Show this help\n");
-	fprintf(stderr, "  -v                          Be more verbose (twice for even more)\n");
+void print_options() {
 	fprintf(stderr, "  --[no-]fastload             Enable/Disable not cleaning the heap on startup\n");
-	fprintf(stderr, "  --[no-]altram, --[no-]fastram\n");
-	fprintf(stderr, "                              Enable/Disable loading into alternate RAM\n");
-	fprintf(stderr, "  --[no-]altalloc, --[no-]fastalloc\n");
-	fprintf(stderr, "                              Enable/Disable malloc from alternate RAM\n");
+	fprintf(stderr, "  --[no-]altram,\n");
+	fprintf(stderr, "  --[no-]fastram              Enable/Disable loading into alternate RAM\n");
+	fprintf(stderr, "  --[no-]altalloc,\n");
+	fprintf(stderr, "  --[no-]fastalloc            Enable/Disable malloc from alternate RAM\n");
 	fprintf(stderr, "  --[no-]best-fit             Enable/Disable loading with optimal heap size\n");
-	fprintf(stderr, "  --[no-]sharable-text, --m[no-]shared-text, --m[no-]baserel\n");
-	fprintf(stderr, "                              Enable/Disable sharing the text segment\n");
+	fprintf(stderr, "  --[no-]sharable-text,\n");
+	fprintf(stderr, "  --[no-]shared-text,\n");
+	fprintf(stderr, "  --[no-]baserel              Enable/Disable sharing the text segment\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "The following memory options are mutually exclusive:\n");
 	fprintf(stderr, "  --private-memory            Process memory is not accessible\n");
 	fprintf(stderr, "  --global-memory             Process memory is readable and writable\n");
 	fprintf(stderr, "  --super-memory              Process memory is accessible in supervisor mode\n");
-	fprintf(stderr, "  --readonly-memory, --readable-memory\n");
-	fprintf(stderr, "                              Process memory is readable but not writable\n");
+	fprintf(stderr, "  --readonly-memory,\n");
+	fprintf(stderr, "  --readable-memory           Process memory is readable but not writable\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "  --prg-flags <value>         Set all the flags with an integer raw value\n");
 	fprintf(stderr, "  --stack <size>              Override the stack size (suffix k or M allowed)\n");
 }
 
-#define die(x, ...) { fprintf(stderr, x "\n", ##__VA_ARGS__); exit(1); }
-#define perrordie(x) { perror(x); exit(1); }
+void usage(const char *name) {
+	fprintf(stderr, "Usage: %s [options] [--] elf-file tos-file\n", name);
+	fprintf(stderr, " Convert an ELF file to a TOS file (by segments)\n");
+	fprintf(stderr, " Options:\n");
+	fprintf(stderr, "  -h, --help                  Show this help\n");
+	fprintf(stderr, "  -v                          Be more verbose (twice for even more)\n");
+	print_options();
+}
+
+#define die(x, ...) do{ fprintf(stderr, x "\n", ##__VA_ARGS__); exit(1); }while(0)
+#define perrordie(x) do{ perror(x); exit(1); }while(0)
 
 void ferrordie(FILE *f, const char *str)
 {
@@ -299,7 +305,8 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		die("ELF is not an executable");
 	if(swap16(ehdr.e_machine) != EM_68K)
 		die("Machine is not 68K");
-//	if(!swap32(ehdr.e_entry))
+
+	map->e_entry = swap32(ehdr.e_entry);
 //		die("ELF has no entrypoint");
 
 //	map->header.entry = ehdr.e_entry;
@@ -338,29 +345,21 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
 		ferrordie(map->elf, "reading program headers");
 	if(swap32(head[0]) == 0x203a001a || swap32(head[1]) == 0x4efb08fa) {
-		map->have_ext_program_header=0xe4;
+		map->have_ext_program_header = map->e_entry ? map->e_entry : 0xe4;
 		if(fseek(map->elf, 0xe4-8, SEEK_CUR) < 0)
 			ferrordie(map->elf, "reading program headers");
 		if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
 			ferrordie(map->elf, "reading program headers");
+	} else if(map->e_entry) {
+		if(swap32(head[0]) != 0x70004afc) // slb
+			fprintf(stderr, "Warning: entry point given but a slb header detected. Entry point ignored\n");
+		else
+			fprintf(stderr, "Warning: entry point given but no extended program header. Entry point ignored\n");
+		map->e_entry = 0;
+		// die("no extended program header but entry point was given");
 	}
 	if(swap32(head[0]) == 0x70004afc) { // slb
 		map->is_slb = 1;
-
-		if(fseek(map->elf, map->program_off+swap32(head[1]), SEEK_SET) < 0)
-			ferrordie(map->elf, "reading slb_info");
-		if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
-			ferrordie(map->elf, "reading slb_info");
-
-		if(fseek(map->elf, map->program_off+swap32(head[0]), SEEK_SET) < 0)
-			ferrordie(map->elf, "reading slb_name");
-		if(fread(&map->slb_name_off, sizeof(uint32_t), 1, map->elf)!=1)
-			ferrordie(map->elf, "reading slb_name");
-
-		if(fseek(map->elf, map->program_off+swap32(head[1]), SEEK_SET) < 0)
-			ferrordie(map->elf, "reading slb_version");
-		if(fread(&map->slb_version, sizeof(uint32_t), 1, map->elf)!=1)
-			ferrordie(map->elf, "reading slb_version");
 	}
 	//////////////////////////////////////////////////////////////////////////
 	// section headers
@@ -424,9 +423,14 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		}
 	}
 	if(syms && sym_names) {
+		uint32_t _startup_size=0;
 		for(i = 0; i < sym_num; i++) {
 			if(!strcmp("__stksize", &sym_names[swap32(syms[i].st_name)]))
 				map->stack_pos = swap32(syms[i].st_value);
+			else if(!strcmp("_slb_version", &sym_names[swap32(syms[i].st_name)]))
+				map->slb_version_pos = swap32(syms[i].st_value);
+			else if(!strcmp(".startup_size", &sym_names[swap32(syms[i].st_name)]))
+				_startup_size = swap32(syms[i].st_value);
 		}
 		if(map->stack_pos) {
 			if(fseek(map->elf, map->program_off + map->stack_pos, SEEK_SET) < 0)
@@ -435,7 +439,11 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				ferrordie(map->elf, "reading _stksize");
 			map->stack_size = (int32_t)swap32((uint32_t)map->stack_size);
 		}
-	}
+		if(!_startup_size && !map->is_slb && map->e_entry == 0) {
+			die("Entry not found: put the entry in section '.text.entry.mint' or in section .text of *crt0*.o or startup.o%s", (map->have_ext_program_header ? " or use the '-e' option to set an entry point" : ""));
+		}
+	} else if(map->e_entry == 0)
+		die("missong symtab: can't check korrect startup position");
 
 	//////////////////////////////////////////////////////////////////////////
 	// sections .rela.*
@@ -462,7 +470,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				read = fread(tmp_relas, 1, s_size, map->elf);
 				if(read != s_size)
 					ferrordie(map->elf, "reading rela's");
-				for(j=0; j <s_size/sizeof(Elf32_Rela); j++) 
+				for(j=0; j <s_size/sizeof(Elf32_Rela); j++)
 				{
 					uint32_t r_type = ELF32_R_TYPE(swap32(tmp_relas[j].r_info));
 					uint32_t r_offset = swap32(tmp_relas[j].r_offset);
@@ -472,7 +480,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 						if(syms && sym_names && tmp_relas[j].r_addend == 0) {
 							Elf32_Sym *sym = &syms[r_sym];
 							const char *sym_name = &sym_names[swap32(sym->st_name)];
-							
+
 							if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
 								/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
 								if(fseek(map->elf, map->program_off + r_offset, SEEK_SET) < 0)
@@ -485,8 +493,8 @@ void read_elf_segments(TOS_map *map, const char *elf)
 						}
 						if(use_rela)
 							*rela_end++ = r_offset;
-					} else if(r_type != R_68K_PC32)
-						fprintf(stderr, "Warning: Found relocation other than R_68K_32 or R_68K_PC32 (r_type=%i)\n", r_type);
+					} else if(r_type != R_68K_PC32 && r_type != R_68K_PC16 && r_type != R_68K_PC8)
+						fprintf(stderr, "Warning: Found relocation other than R_68K_32, R_68K_PC8, R_68K_PC16 or R_68K_PC32 (r_type=%i)\n", r_type);
 				}
 				free(tmp_relas);
 			}
@@ -595,16 +603,16 @@ void write_tos(TOS_map *map, const char *tos)
 	if(written != 1)
 		ferrordie(tosf, "writing tpa relocation");
 
-	if(map->is_slb) {
-		if(map->have_ext_program_header)
-			fprintf(stderr, "warning: shared library with a.out-mintprg header detected\n         maybe not work with MagiC!\n");
-		if(fseek(tosf, 0x1c + 0x4 + map->have_ext_program_header, SEEK_SET) < 0)
-			ferrordie(tosf, "fix slb-stuff");
-
-		if(fwrite(&map->slb_name_off, sizeof(uint32_t), 1, tosf) != 1)
-			ferrordie(tosf, "fix slb-stuff");
-		if(fwrite(&map->slb_version, sizeof(uint32_t), 1, tosf) != 1)
-			ferrordie(tosf, "fix slb-stuff");
+	if(map->is_slb && map->slb_version_pos) {
+		uint32_t val;
+		if(fseek(tosf, 0x1c + map->slb_version_pos, SEEK_SET) < 0)
+			ferrordie(tosf, "fixing slb-stuff");
+		if(fread(&val, sizeof(val), 1, tosf) != 1)
+			ferrordie(tosf, "fixing slb-stuff");
+		if(fseek(tosf, 0x1c + 0x8 + map->have_ext_program_header, SEEK_SET) < 0)
+			ferrordie(tosf, "fixing slb-stuff");
+		if(fwrite(&val, sizeof(uint32_t), 1, tosf) != 1)
+			ferrordie(tosf, "fixing slb-stuff");
 	}
 
 	if(map->stack_pos) {
@@ -618,7 +626,7 @@ void write_tos(TOS_map *map, const char *tos)
 		}
 		if(stack_size) {
 			if(verbosity >= 1) {
-				if(map->stack_size != stack_size) 
+				if(map->stack_size != stack_size)
 					fprintf(stderr, "change stack-size from %i to %i\n", map->stack_size, stack_size);
 			}
 			val = swap32(stack_size);
@@ -637,8 +645,8 @@ void write_tos(TOS_map *map, const char *tos)
 	fclose(tosf);
 }
 static inline void set_prg_flags(uint32_t mask, uint32_t value, int no) {
-	prg_flags &= ~mask; 
-	if(no==0) prg_flags |= value; 
+	prg_flags &= ~mask;
+	if(no==0) prg_flags |= value;
 }
 int main(int argc, char **argv)
 {
@@ -652,17 +660,21 @@ int main(int argc, char **argv)
 
 	while(argc && *arg[0] == '-') {
 		int unrecognized_option = 0;
-		if(!strcmp(*arg, "-h")) {
+		if(!strcmp(*arg, "-h") || !strcmp(*arg, "--help")) {
 			usage(argv[0]);
-			return 1;
+			return 0;
+		} else if(!strcmp(*arg, "--target-help")) {
+			print_options();
+			return 0;
 		} else if(!strcmp(*arg, "-v")) {
 			verbosity++;
 		} else if(!strcmp(*arg, "--")) {
 			arg++;
 			argc--;
 			break;
-		} else if(!strncmp(*arg, "--", 2)) {
+		} else if(!strncmp(*arg, "--", 2) || !strncmp(*arg, "-m", 2)) { // enable --oprion an -moption
 			char *p = (*arg)+2;
+			if (arg[0][1] == '-' && *p == 'm') ++p; // enable --moption to
 			int no=0;
 			if(!strcmp(p, "private-memory"))
 				set_prg_flags(_MINT_F_MEMPROTECTION, _MINT_F_MEMPRIVATE, no);
@@ -724,7 +736,7 @@ int main(int argc, char **argv)
 					set_prg_flags(_MINT_F_SHTEXT, _MINT_F_SHTEXT, no);
 				else
 					unrecognized_option = 1;
-			} 
+			}
 		} else
 			unrecognized_option = 1;
 		if(unrecognized_option) {
@@ -735,9 +747,9 @@ int main(int argc, char **argv)
 		arg++;
 		argc--;
 	}
-	if(argc < 2) {
+	if(argc != 2) {
 		usage(argv[0]);
-		exit(1);
+		return 1;
 	}
 
 	const char *elf_file = arg[0];

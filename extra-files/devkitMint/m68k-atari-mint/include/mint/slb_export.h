@@ -8,11 +8,7 @@
 
 typedef long (*SLB_FNC)(BASEPAGE *bp, long fn, short nargs, ...);
 
-#ifdef __MSHORT__
-#	define SLB_EXPORT(SLOT) __attribute__((slb_export(SLOT))) 
-#else
-#	define SLB_EXPORT(SLOT) __attribute__((mshort_call, slb_export(SLOT))) 
-#endif
+#define SLB_EXPORT(SLOT) __attribute__((slb_export(SLOT)))
 
 __BEGIN_DECLS
 
@@ -21,7 +17,7 @@ extern void slb_exit();
 extern long slb_open(BASEPAGE *bp);
 extern long slb_close(BASEPAGE *bp);
 extern long slb_version;
-extern const char *slb_name;
+extern const char slb_name[];
 
 __END_DECLS
 

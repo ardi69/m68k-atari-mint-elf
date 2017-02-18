@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------------
 REMAKE=0
 
-if [ 1 -eq 1 ] ; then
+if [ 1 -eq 0 ] ; then
   echo "Currently in release cycle, proceed with caution, do not report problems, do not ask for support."
   echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
   echo "http://sourceforge.net/projects/devkitpro/files/buildscripts/"
@@ -27,12 +27,13 @@ DEVKITMINT_URL="http://m68k-atari-mint-elf.googlecode.com/files"
 #---------------------------------------------------------------------------------
 export CFLAGS="-O2 -pipe"
 export CXXFLAGS="$CFLAGS"
+[ -z $LIBRARY_PATH ] && export LIBRARY_PATH=/usr/lib || export LIBRARY_PATH=/usr/lib:$LIBRARY_PATH
 unset LDFLAGS
 
 #---------------------------------------------------------------------------------
 # Look for automated configuration file to bypass prompts
 #---------------------------------------------------------------------------------
- 
+
 echo -n "Looking for configuration file... "
 if [ -f ./config.sh ]; then
   echo "Found."
@@ -46,197 +47,123 @@ fi
 # Ask whether to download the source packages or not
 #---------------------------------------------------------------------------------
 
-GCC_VER=4.8.2
-BINUTILS_VER=2.24
-NEWLIB_VER=1.20.0
-MINTLIB_VER="CVS20120301"
-PMLLIB_VER="2.03"
-GEMLIB_VER="CVS-20130415"
-GDB_VER=7.4
 
 package=devkitMINT
-builddir=m68k-atari-mint
+rootdir=$(pwd)
+downloaddir=$(pwd)/downloads
+srcdir=$(pwd)/src
+patchdir=$(pwd)/patches
+scriptdir=$(pwd)/scripts
+builddir=$(pwd)/build
+
+
+
+
 target=m68k-atari-mint
 toolchain=DEVKITMINT
 
-GCC="gcc-$GCC_VER.tar.bz2"
 
-GCC_URL="$DEVKITMINT_URL/$GCC"
+BINUTILS_VER=2.27
+BINUTILS_ARC="binutils-$BINUTILS_VER.tar.bz2"
+BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/$BINUTILS_ARC"
+BINUTILS_SRC="binutils-$BINUTILS_VER"
 
-BINUTILS="binutils-$BINUTILS_VER.tar.bz2"
-BINUTILS_URL="$DEVKITMINT_URL/$BINUTILS"
-GDB="gdb-$GDB_VER.tar.bz2"
-GDB_URL="$DEVKITMINT_URL/$GDB"
+GMP_VER=6.1.2
+GMP_ARC=$(echo "#include <gmp.h>" | gcc -E - &> /dev/null || echo "gmp-$GMP_VER.tar.bz2")
+GMP_URL="https://ftp.gnu.org/gnu/gmp/$GMP_ARC"
+GMP_SRC="gmp-$GMP_VER"
 
-MINTLIB="mintlib-src-$MINTLIB_VER.tar.bz2"
-MINTLIB_URL="$DEVKITMINT_URL/$MINTLIB"
+MPFR_VER=3.1.5
+MPFR_ARC=$(echo -e "#define __MPFR_H\n#include <mpfr.h>" | gcc -E - &> /dev/null || echo "mpfr-$MPFR_VER.tar.bz2")
+MPFR_URL="https://ftp.gnu.org/gnu/mpfr/$MPFR_ARC"
+MPFR_SRC="mpfr-$MPFR_VER"
 
-PMLLIB="pml-$PMLLIB_VER.tar.bz2"
-PMLLIB_URL="$DEVKITMINT_URL/$PMLLIB"
+MPC_VER=1.0.3
+MPC_ARC=$(echo -e "#define __MPC_H\n#include <mpc.h>" | gcc -E - &> /dev/null || echo "mpc-$MPC_VER.tar.gz")
+MPC_URL="https://ftp.gnu.org/gnu/mpc/$MPC_ARC"
+MPC_SRC="mpc-$MPC_VER"
 
-GEMLIB="gemlib-CVS-20130415.tar.bz2"
-GEMLIB_URL="http://vincent.riviere.free.fr/soft/m68k-atari-mint/archives/gemlib-CVS-20130415.tar.bz2"
+GCC_VER=4.9.4
+GCC_ARC="gcc-$GCC_VER.tar.bz2"
+GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VER/$GCC_ARC"
+GCC_SRC="gcc-$GCC_VER"
 
-DOWNLOAD=0
+#GDB_VER=7.4
+#GDB_ARC="gdb-$GDB_VER.tar.bz2"
+#GDB_URL=
+#GDB_SRC="gdb-$GDB_VER"
 
-if [ ! -z "$BUILD_DKMINT_DOWNLOAD" ] ; then
-	DOWNLOAD="$BUILD_DKMINT_DOWNLOAD"
-fi
+MINTLIB_VER="master"
+MINTLIB_ARC="mintlib-$MINTLIB_VER.tar.gz"
+MINTLIB_URL="https://github.com/freemint/mintlib/archive/$MINTLIB_VER.tar.gz"
+MINTLIB_SRC="mintlib-$MINTLIB_VER"
 
-if [ -f downloaded_sources ] ; then
-	DOWNLOAD=1
-fi
+PMLLIB_VER="2.03"
+PMLLIB_ARC="pml-$PMLLIB_VER.tar.bz2"
+PMLLIB_URL=
+PMLLIB_SRC="pml-$PMLLIB_VER"
 
-while [ $DOWNLOAD -eq 0 ]
-do
-  echo
-  echo "The installation requires binutils-$BINUTILS_VER, gcc-$GCC_VER, mintlib-$MINTLIB_VER, PML-$PMLLIB_VER, GEMlib-$GEMLIB_VER and gdb-$GDB_VER.  Please select an option:"
-  echo
-  echo "1: I have already downloaded the source packages"
-  echo "2: Download the packages for me (requires curl or wget)"
-  read DOWNLOAD
+GEMLIB_VER="master"
+#GEMLIB_VER="6df3f962ff80c674443a0bc0335fc0c6a56b6598" # 0_44_0
+GEMLIB_ARC="gemlib-$GEMLIB_VER.tar.gz"
+GEMLIB_URL="https://github.com/freemint/lib/archive/$GEMLIB_VER.tar.gz"
+GEMLIB_SRC="lib-$GEMLIB_VER"
 
-  if [ "$DOWNLOAD" -ne 1 -a "$DOWNLOAD" -ne 2 ]
-  then
-      DOWNLOAD=0
-  fi
-done
 
-if [ "$DOWNLOAD" -eq 2 ]; then
-  if test "`curl -V`"; then
-    FETCH="curl -f -L -O"
-  elif test "`wget -V`"; then
-    FETCH=wget
-  else
-    echo "ERROR: Please make sure you have wget or curl installed."
-    exit 1
-  fi
-fi
+PACKAGE_LIST="BINUTILS GMP MPFR MPC GCC GDB MINTLIB PMLLIB GEMLIB"
 
 
 #---------------------------------------------------------------------------------
 # Get preferred installation directory and set paths to the sources
 #---------------------------------------------------------------------------------
 
-if [ ! -z "$BUILD_DKMINT_INSTALLDIR" ] ; then
+if [ ! -z "$BUILD_DKMINT_INSTALLDIR" ]; then
 	INSTALLDIR="$BUILD_DKMINT_INSTALLDIR"
 else
-	echo
-	echo "Please enter the directory where you would like '$package' to be installed:"
-	echo "for mingw/msys you must use <drive>:/<install path> or you will have include path problems"
-	echo "this is the top level directory for devkitpro, i.e. e:/devkitPro"
+	while [ "x$INSTALLDIR" == "x" ]; do
+		echo
+		echo "Please enter the directory where you would like '$package' to be installed:"
+		echo "for mingw/msys you must use <drive>:/<install path> or you will have include path problems"
+		echo "this is the top level directory for devkitpro, i.e. e:/devkitPro"
 
-	read INSTALLDIR
-	echo
+		read INSTALLDIR
+		echo
+	done
 fi
 
-[ ! -z "$INSTALLDIR" ] && mkdir -p $INSTALLDIR && touch $INSTALLDIR/nonexistantfile && rm $INSTALLDIR/nonexistantfile || exit 1;
 
-if [ $DOWNLOAD -eq 1 ]
-then
-    FOUND=0
-    while [ $FOUND -eq 0 ]
-	  do
-	  if [ ! -z "$BUILD_DKMINT_SRCDIR" ] ; then
-		  SRCDIR="$BUILD_DKMINT_SRCDIR"
-	  else
-		  echo
-		  echo "Please enter the path to the directory that contains the source packages:"
-		  read SRCDIR
-	  fi
+#---------------------------------------------------------------------------------
+# download
+#---------------------------------------------------------------------------------
 
-      if [ ! -f $SRCDIR/$BINUTILS ]
-      then
-	    echo "Error: $BINUTILS not found in $SRCDIR"
-	    exit 1
-      else
-	    FOUND=1
-      fi
+function download() {
+	local file=$1_ARC; file=${!file}
+	local url=$1_URL; url=${!url}
+	[ -z $file ] && return
+	if [ ! -f $file ]; then
+		[ -z $url ] && echo "no URL for $file. Download and store to `pwd`" && exit 1
+		if [ -z "$FETCH" ]; then
+			if [ -z "$FETCH" -a -x "$(which wget)" ]; then FETCH="$(which wget) --no-check-certificate -O"; fi
+			if [ -z "$FETCH" -a -x "$(which curl)" ]; then FETCH="$(which curl) -k -f -L -o"; fi
+			[ -z "$FETCH" ] && { echo "ERROR: Please make sure you have wget or curl installed."; exit 1; }
+		fi
+		rm -f "$file.tmp"
+		echo $FETCH "$file.tmp" $url
+		$FETCH "$file.tmp" $url && mv "$file.tmp" $file || { echo "Error: Failed to download $file form $url"; exit 1; }
+	fi
+	if [ -f $file ]; then
+		echo "found $file"
+	else
+		echo "Error: $file not found in `pwd`"
+		exit 1;
+	fi
+}
 
-      if [ ! -f $SRCDIR/$GCC ]
-      then
-        echo "Error: $GCC not found in $SRCDIR"
-        exit 1
-      else
-	      FOUND=1
-      fi
+mkdir -p $downloaddir && cd $downloaddir || { echo "Can't go to $downloaddir"; exit 1; }
 
-      if [ ! -f $SRCDIR/$MINTLIB ]
-      then
-        echo "Error: $MINTLIB not found in $SRCDIR"
-        exit 1
-      else
-	      FOUND=1
-      fi
+for p in $PACKAGE_LIST; do download $p; done
 
-      if [ ! -f $SRCDIR/$PMLLIB ]
-      then
-        echo "Error: $PMLLIB not found in $SRCDIR"
-        exit 1
-      else
-	      FOUND=1
-      fi
-
-      if [ ! -f $SRCDIR/$GEMLIB ]
-      then
-        echo "Error: $GEMLIB not found in $SRCDIR"
-        exit 1
-      else
-	      FOUND=1
-      fi
-
- #     if [ ! -f $SRCDIR/$NEWLIB ]
- #     then
- #       echo "Error: $NEWLIB not found in $SRCDIR"
- #       exit 1
- #     else
- #       FOUND=1
- #     fi
-
-#      if [ ! -f $SRCDIR/$GDB ]
-#      then
-#        echo "Error: $GDB not found in $SRCDIR"
-#	    exit 1
-#     else
-#        FOUND=1
-#      fi
-    done
-
-else
-
-    if [ ! -f downloaded_sources ]
-    then
-			TEMP_DIR=`pwd`
-	  	if [ ! -z "$BUILD_DKMINT_SRCDIR" ] && mkdir -p $BUILD_DKMINT_SRCDIR ; then
-      	cd $BUILD_DKMINT_SRCDIR
-			fi
-      $FETCH $BINUTILS_URL || { echo "Error: Failed to download "$BINUTILS; exit 1; }
-
-      $FETCH $GCC_URL || { echo "Error: Failed to download "$GCC; exit 1; }
-
-      $FETCH $GDB_URL || { echo "Error: Failed to download "$GDB; exit 1; }
-
-      $FETCH $MINTLIB_URL || { echo "Error: Failed to download "$MINTLIB; exit 1; }
-
-      $FETCH $PMLLIB_URL || { echo "Error: Failed to download "$PMLLIB; exit 1; }
-
-      $FETCH $GEMLIB_URL || { echo "Error: Failed to download "$GEMLIB; exit 1; }
-
-      SRCDIR=`pwd`
-      cd $TEMP_DIR
-      unset TEMP_DIR
-
-      touch downloaded_sources
-    fi
-fi
-
-BINUTILS_SRCDIR="binutils-$BINUTILS_VER"
-GCC_SRCDIR="gcc-$GCC_VER"
-MINTLIB_SRCDIR="mintlib-$MINTLIB_VER"
-PMLLIB_SRCDIR="pml-$PMLLIB_VER"
-GEMLIB_SRCDIR="gemlib-$GEMLIB_VER"
-GDB_SRCDIR="gdb-$GDB_VER"
-
+cd $rootdir
 
 #---------------------------------------------------------------------------------
 # find proper make
@@ -245,21 +172,21 @@ if [ -z "$MAKE" -a -x "$(which gnumake)" ]; then MAKE=$(which gnumake); fi
 if [ -z "$MAKE" -a -x "$(which gmake)" ]; then MAKE=$(which gmake); fi
 if [ -z "$MAKE" -a -x "$(which make)" ]; then MAKE=$(which make); fi
 if [ -z "$MAKE" ]; then
-  echo no make found
-  exit 1
+	echo no make found
+	exit 1
 fi
 echo use $MAKE as make
 export MAKE
 
-  
+
 #---------------------------------------------------------------------------------
 # find proper gawk
 #---------------------------------------------------------------------------------
 if [ -z "$GAWK" -a -x "$(which gawk)" ]; then GAWK=$(which gawk); fi
 if [ -z "$GAWK" -a -x "$(which awk)" ]; then GAWK=$(which awk); fi
 if [ -z "$GAWK" ]; then
-  echo no awk found
-  exit 1
+	echo no awk found
+	exit 1
 fi
 echo use $GAWK as gawk
 export GAWK
@@ -268,8 +195,8 @@ export GAWK
 # find makeinfo, needed for newlib
 #---------------------------------------------------------------------------------
 if [ ! -x $(which makeinfo) ]; then
-  echo makeinfo not found
-  exit 1
+	echo makeinfo not found
+	exit 1
 fi
 
 #---------------------------------------------------------------------------------
@@ -283,91 +210,79 @@ if [ "$BUILD_DKMINT_AUTOMATED" != "1" ] ; then
 	echo
 	echo 'Ready to install '$package' in '$INSTALLDIR
 	echo
+	echo "ToolPath = $TOOLPATH/$package/bin"
+	echo
 	echo 'press return to continue'
 
 	read dummy
 fi
 
-patchdir=$(pwd)/patches
-scriptdir=$(pwd)/scripts
 
 #---------------------------------------------------------------------------------
-# Extract source packages
+# extract & patch
 #---------------------------------------------------------------------------------
 
-BUILDSCRIPTDIR=$(pwd)
+function extract_package() {
+	local arc=${1}_ARC; arc=${!arc}
+	local src=${1}_SRC; src=${!src}
+	local patchfile=${1}_PATCH; patchfile=${!patchfile}
+	local patch
+	[ -z $arc ] && return
 
-if [ $REMAKE -eq 1 ]
-then
-	rm -r $SRCDIR/$MINTLIB_SRCDIR
-	echo "Extracting $MINTLIB"
-	tar -xjf $SRCDIR/$MINTLIB || { echo "Error extracting "$BINUTILS; exit 1; }
-fi
+	if [ ! -f $src/extracted ]; then
+		echo "Extracting $arc"
+		rm -fr $src
+		case $arc in
+		*bz2)
+			tar -xjf $downloaddir/$arc || { echo "Error extracting $arc"; exit 1; }
+			;;
+		*gz)
+			tar -xzf $downloaddir/$arc || { echo "Error extracting $arc"; exit 1; }
+			;;
+		*)
+			echo "Error no extracting rule for $arc"
+			exit 1
+			;;
+		esac
+		[ ! -d $src ] && { echo "$arc extracted but `pwd`/$src not found"; exit 1; }
+		touch $src/extracted
+	fi
+	if [ ! -f $src/patched ]; then
+		for patch in $patchfile $patchdir/$src.p?.patch; do
+			if [ -f $patch ]; then
+				case $patch in
+				*.p0.patch)
+					echo "Patching $src"
+					patch -s -p0 -d $srcdir/$src -i $patch || { echo "Error patching $src"; exit 1; }
+					;;
+				*.p1.patch)
+					echo "Patching $src"
+					patch -s -p1 -d $srcdir/$src -i $patch || { echo "Error patching $src"; exit 1; }
+					;;
+				*)
+					echo skip $patch
+					;;
+				esac
+			fi
+		done
+		touch $src/patched
+	fi
 
-if [ ! -f extracted_archives ]
-then
-  echo "Extracting $BINUTILS"
-  tar -xjf $SRCDIR/$BINUTILS || { echo "Error extracting "$BINUTILS; exit 1; }
+}
+mkdir -p $srcdir && cd $srcdir || { echo "Can't go to $srcdir"; exit 1; }
+for p in $PACKAGE_LIST; do extract_package $p; done
 
-  echo "Extracting $GCC"
-  tar -xjf $SRCDIR/$GCC || { echo "Error extracting "$GCC; exit 1; }
-
-  echo "Extracting $MINTLIB"
-  tar -xjf $SRCDIR/$MINTLIB || { echo "Error extracting "$MINTLIB; exit 1; }
-
-  echo "Extracting $PMLLIB"
-  tar -xjf $SRCDIR/$PMLLIB || { echo "Error extracting "$PMLLIB; exit 1; }
-
-  echo "Extracting $GEMLIB"
-  tar -xjf $SRCDIR/$GEMLIB || { echo "Error extracting "$GEMLIB; exit 1; }
-
-  touch extracted_archives
-
-fi
-
-#---------------------------------------------------------------------------------
-# apply patches
-#---------------------------------------------------------------------------------
-
-if [ ! -f patched_sources ]
-then
-
-  if [ -f $patchdir/binutils-$BINUTILS_VER.patch ]
-  then
-    patch -p1 -d $BINUTILS_SRCDIR -i $patchdir/binutils-$BINUTILS_VER.patch || { echo "Error patching binutils"; exit 1; }
-  fi
-
-  if [ -f $patchdir/gcc-$GCC_VER.patch ]
-  then
-    patch -p1 -d $GCC_SRCDIR -i $patchdir/gcc-$GCC_VER.patch || { echo "Error patching gcc"; exit 1; }
-  fi
-
-  if [ -f $patchdir/mintlib-$MINTLIB_VER.patch ]
-  then
-    patch -p0 -d $MINTLIB_SRCDIR -i $patchdir/mintlib-$MINTLIB_VER.patch || { echo "Error patching mintlib"; exit 1; }
-  fi
-
-  if [ -f $patchdir/pml-$PMLLIB_VER.patch ]
-  then
-    patch -p1 -d $PMLLIB_SRCDIR -i $patchdir/pml-$PMLLIB_VER.patch || { echo "Error patching portable math lib"; exit 1; }
-  fi
-
-#  if [ -f $patchdir/gdb-$GDB_VER.patch ]
-#  then
-#    patch -p1 -d $GDB_SRCDIR -i $patchdir/gdb-$GDB_VER.patch || { echo "Error patching gdb"; exit 1; }
-#  fi
-
-  touch patched_sources
-fi
+cd $rootdir
 
 #---------------------------------------------------------------------------------
 # Build and install devkit components
 #---------------------------------------------------------------------------------
-if [ -f $scriptdir/build-gcc.sh ]; then . $scriptdir/build-gcc.sh || { echo "Error building toolchain"; exit 1; }; cd $BUILDSCRIPTDIR; fi
-if [ -f $scriptdir/build-portlibs.sh ]; then . $scriptdir/build-portlibs.sh || { echo "Error building portlibs"; exit 1; }; cd $BUILDSCRIPTDIR; fi
+if [ -f $scriptdir/build-gcc.sh ]; then . $scriptdir/build-gcc.sh || { echo "Error building toolchain"; exit 1; }; cd $rootdir; fi
+exit
+if [ -f $scriptdir/build-portlibs.sh ]; then . $scriptdir/build-portlibs.sh || { echo "Error building portlibs"; exit 1; }; cd $rootdir; fi
 exit;
-if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo "Error building crtls"; exit 1; }; cd $BUILDSCRIPTDIR; fi
-if [ -f $scriptdir/build-tools.sh ]; then . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR; fi
+if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo "Error building crtls"; exit 1; }; cd $rootdir; fi
+if [ -f $scriptdir/build-tools.sh ]; then . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $rootdir; fi
 
 #---------------------------------------------------------------------------------
 # strip binaries

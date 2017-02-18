@@ -1,0 +1,41 @@
+Index: include/mint/cookie.h
+===================================================================
+--- include/mint/cookie.h	(Revision 3)
++++ include/mint/cookie.h	(Arbeitskopie)
+@@ -631,6 +631,14 @@
+ #define C_FOUND		0
+ #define C_NOTFOUND	-1	/* EERROR */
+ 
++#ifndef _FEATURES_H
++# include <features.h>
++#endif
++
++__BEGIN_DECLS
++
+ extern int 	Getcookie(long cookie, long *val);
+ 
++__END_DECLS
++
+ #endif
+Index: include/stdlib.h
+===================================================================
+--- include/stdlib.h	(Revision 3)
++++ include/stdlib.h	(Arbeitskopie)
+@@ -81,7 +81,7 @@
+ extern double strtod (__const char *__restrict __nptr,
+ 		      char **__restrict __endptr) __THROW;
+ 
+-#ifdef	__USE_ISOC99
++/*#ifdef	__USE_ISOC99*/
+ /* Likewise for `float' and `long double' sizes of floating-point numbers.  */
+ extern float strtof (__const char *__restrict __nptr,
+ 		     char **__restrict __endptr) __THROW;
+@@ -88,7 +88,7 @@
+ 
+ extern long double strtold (__const char *__restrict __nptr,
+ 			    char **__restrict __endptr) __THROW;
+-#endif
++/*#endif*/
+ 
+ /* Convert a string to a long integer.  */
+ extern long int strtol (__const char *__restrict __nptr,

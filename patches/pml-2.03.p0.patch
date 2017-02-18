@@ -1,91 +1,7 @@
-diff -aurN pml-2.03/pmlsrc/Makefile pml-2.03-mint-20110207/pmlsrc/Makefile
---- pml-2.03/pmlsrc/Makefile	1970-01-01 01:00:00.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/Makefile	2011-02-07 22:54:57.093750000 +0100
-@@ -0,0 +1,39 @@
-+CROSSDIR = /dsrg/bammi/cross-minix
-+CROSSLIB = $(CROSSDIR)/lib
-+CROSSBIN = $(CROSSDIR)/bin
-+CROSSINC = $(CROSSDIR)/include
-+WITH_SHORT_LIBS = 0
-+
-+ALL = libpml32.a
-+
-+ifeq ($(WITH_SHORT_LIBS), 1)
-+ALL += libpml.a
-+endif
-+
-+all : $(ALL)
-+
-+libpml32.a :
-+	make -f Makefile.32 clean
-+	make -f Makefile.32 libpml32.a
-+
-+ifeq ($(WITH_SHORT_LIBS), 1)
-+libpml.a :
-+	make -f Makefile.16 clean
-+	make -f Makefile.16 libpml.a
-+endif
-+
-+install : $(ALL)
-+	mkdir -p $(CROSSLIB)
-+	cp libpml32.a $(CROSSLIB)/libm.a
-+ifeq ($(WITH_SHORT_LIBS), 1)
-+	mkdir -p $(CROSSLIB)/mshort
-+	cp libpml.a $(CROSSLIB)/mshort/libm.a
-+endif
-+	mkdir -p $(CROSSINC)
-+	cp math.h $(CROSSINC)
-+
-+clean:
-+	make -f Makefile.32 clean
-+ifeq ($(WITH_SHORT_LIBS), 1)
-+	make -f Makefile.16 clean
-+endif
-diff -aurN pml-2.03/pmlsrc/Makefile.16 pml-2.03-mint-20110207/pmlsrc/Makefile.16
---- pml-2.03/pmlsrc/Makefile.16	1994-03-19 15:40:08.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/Makefile.16	2011-02-07 22:54:57.109375000 +0100
-@@ -22,7 +22,7 @@
- 
- AR = /dsrg/bammi/cross-gcc/bin/car
- CC = $(CROSSBIN)/mgcc
--CFLAGS = -mshort -O2 -DIEEE -DNO_DBUG -D__GCC_HACK__ -I.
-+CFLAGS = -mshort -O2 -fomit-frame-pointer -DIEEE -DNO_DBUG -I.
- 
- LIB = $(CROSSLIB)
- 
-@@ -44,7 +44,7 @@
- 
- LEVEL4 =	cadd.o
- 
--OBJ =		$(LEVEL4) $(LEVEL3) $(LEVEL2) $(LEVEL1) $(LEVEL0)
-+OBJ =		$(LEVEL4) $(LEVEL2) $(LEVEL1) $(LEVEL0)
- 
- #
- #	The default thing to make.
-diff -aurN pml-2.03/pmlsrc/Makefile.32 pml-2.03-mint-20110207/pmlsrc/Makefile.32
---- pml-2.03/pmlsrc/Makefile.32	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/Makefile.32	2011-02-07 22:54:57.125000000 +0100
-@@ -22,7 +22,7 @@
- 
- AR = /dsrg/bammi/cross-gcc/bin/car
- CC = $(CROSSBIN)/mgcc
--CFLAGS = -O2 -DIEEE -DNO_DBUG -D__GCC_HACK__ -I.
-+CFLAGS = -O2 -fomit-frame-pointer -DIEEE -DNO_DBUG -I.
- 
- LIB = $(CROSSLIB)
- 
-@@ -44,7 +44,7 @@
- 
- LEVEL4 =	cadd.o
- 
--OBJ =		$(LEVEL4) $(LEVEL3) $(LEVEL2) $(LEVEL1) $(LEVEL0)
-+OBJ =		$(LEVEL4) $(LEVEL2) $(LEVEL1) $(LEVEL0)
- 
- #
- #	The default thing to make.
-diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
---- pml-2.03/pmlsrc/acos.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/acos.c	2011-02-07 22:54:57.125000000 +0100
+Index: pmlsrc/acos.c
+===================================================================
+--- pmlsrc/acos.c	(Revision 2)
++++ pmlsrc/acos.c	(Arbeitskopie)
 @@ -101,7 +101,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -95,15 +11,27 @@ diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
  	    errno = EDOM;
  	    xcpt.retval = HUGE_VAL;	/* for now, should ne NaN	*/
  	}
-@@ -131,150 +131,150 @@
- zahl =	  0
- ");	/* end asm	*/
+@@ -125,13 +125,13 @@
+ #endif	/* !__M68881 && !sfp004	*/
+ #ifdef	sfp004
+ 
+-__asm("
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-");	/* end asm	*/
++__asm(
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -138,143 +138,143 @@
  
  #ifdef ERROR_CHECK
  
@@ -126,7 +54,8 @@ diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
 +".even\t\n"
 +);
  
- #endif ERROR_CHECK
+-#endif ERROR_CHECK
++#endif /* ERROR_CHECK */
  
  #ifdef ERROR_CHECK
 -    __asm("
@@ -138,24 +67,6 @@ diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
 -|    /* -Inf = {fff00000,00000000}		*/
 -|    /* MAX_D= {7fee42d1,30773b76}		*/
 -|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
 +    __asm(
 +"| m.ritzert 14.12.1991\t\n"
 +"| ritzert@dfg.dbp.de\t\n"
@@ -183,19 +94,38 @@ diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +);
- #endif ERROR_CHECK
++#endif /* ERROR_CHECK */
  
--__asm("
 -.even
--.globl _acos
--_acos:
--    ");	/* end asm	*/
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-#endif ERROR_CHECK
 +__asm(
 +".even\t\n"
 +".globl _acos\t\n"
 +"_acos:\t\n"
 +    );	/* end asm	*/
  
+-__asm("
+-.even
+-.globl _acos
+-_acos:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -365,9 +295,10 @@ diff -aurN pml-2.03/pmlsrc/acos.c pml-2.03-mint-20110207/pmlsrc/acos.c
  __asm("rts");
  
  #endif /* __M68881__ || sfp004	*/
-diff -aurN pml-2.03/pmlsrc/acosh.c pml-2.03-mint-20110207/pmlsrc/acosh.c
---- pml-2.03/pmlsrc/acosh.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/acosh.c	2011-02-07 22:54:57.140625000 +0100
+Index: pmlsrc/acosh.c
+===================================================================
+--- pmlsrc/acosh.c	(Revision 2)
++++ pmlsrc/acosh.c	(Arbeitskopie)
 @@ -85,7 +85,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -386,9 +317,10 @@ diff -aurN pml-2.03/pmlsrc/acosh.c pml-2.03-mint-20110207/pmlsrc/acosh.c
  	    errno = ERANGE;
  	    x = SQRT_MAXDOUBLE;
  	    xcpt.retval = log (2* SQRT_MAXDOUBLE);
-diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
---- pml-2.03/pmlsrc/asin.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/asin.c	2011-02-07 22:54:57.156250000 +0100
+Index: pmlsrc/asin.c
+===================================================================
+--- pmlsrc/asin.c	(Revision 2)
++++ pmlsrc/asin.c	(Arbeitskopie)
 @@ -95,7 +95,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -398,7 +330,7 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
  	    errno = EDOM;
  	    xcpt.retval = HUGE_VAL;
  	}
-@@ -110,7 +110,7 @@
+@@ -110,18 +110,18 @@
      }
      return (xcpt.retval);
  }
@@ -406,16 +338,25 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 +#endif /* !defined (__M68881__) #endif !defined (__M68881__) && !defined (sfp004)#endif !defined (__M68881__) && !defined (sfp004) !defined (sfp004) */	/* mjr++	*/
  #ifdef	sfp004
  
- __asm("
-@@ -121,68 +121,68 @@
+-__asm("
++__asm(
  
- ");	/* end asm	*/
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -128,141 +128,141 @@
  
  # ifdef ERROR_CHECK
  
@@ -457,6 +398,13 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 -	.long	0x00000000
 -
 -");	/* END ASM	*/
+-# endif	ERROR_CHECK
+-__asm("
+-.even
+-	.globl _asin
+-_asin:
+-
+-");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -495,13 +443,7 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 +"	.long	0x00000000\t\n"
 +"\t\n"
 +);	/* END ASM	*/
- # endif	ERROR_CHECK
--__asm("
--.even
--	.globl _asin
--_asin:
--
--");	/* end asm	*/
++# endif	/* ERROR_CHECK */
 +__asm(
 +".even\t\n"
 +"	.globl _asin\t\n"
@@ -525,11 +467,28 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -196,71 +196,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x540c,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0\n"
++"	movew	#0x540c,a0@(comm)	| specify function\n"
++"	cmpiw	#0x8900,a0@(resp)	| check\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"	movew	#0x7400,a0@(comm)	| result to d0\n"
++"	.long	0x0c688900, 0xfff067f8	| wait\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -647,6 +606,7 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -656,12 +616,16 @@ diff -aurN pml-2.03/pmlsrc/asin.c pml-2.03-mint-20110207/pmlsrc/asin.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  __asm("rts");
- # endif	ERROR_CHECK
-diff -aurN pml-2.03/pmlsrc/asinh.c pml-2.03-mint-20110207/pmlsrc/asinh.c
---- pml-2.03/pmlsrc/asinh.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/asinh.c	2011-02-07 22:54:57.156250000 +0100
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ 
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/asinh.c
+===================================================================
+--- pmlsrc/asinh.c	(Revision 2)
++++ pmlsrc/asinh.c	(Arbeitskopie)
 @@ -85,7 +85,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -671,9 +635,10 @@ diff -aurN pml-2.03/pmlsrc/asinh.c pml-2.03-mint-20110207/pmlsrc/asinh.c
  	    errno = ERANGE;
  	    xcpt.retval = log (2 * SQRT_MAXDOUBLE);
  	}
-diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
---- pml-2.03/pmlsrc/atan.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/atan.c	2011-02-07 22:54:57.171875000 +0100
+Index: pmlsrc/atan.c
+===================================================================
+--- pmlsrc/atan.c	(Revision 2)
++++ pmlsrc/atan.c	(Arbeitskopie)
 @@ -198,7 +198,7 @@
  		    xcpt.type = UNDERFLOW;
  		    xcpt.name = funcname;
@@ -683,9 +648,20 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
  		    errno = EDOM;
  		}
  		x = 0.0;
-@@ -238,68 +238,68 @@
- zahl =	  0
- ");	/* end asm	*/
+@@ -232,124 +232,124 @@
+ #endif	/* !__M68881__ || !sfp004	*/
+ #ifdef	sfp004
+ 
+-__asm("
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-");	/* end asm	*/
++__asm(
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -695,43 +671,6 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"atan: %s error\\n\\0\"
--.even
--
--
--| pml compatible atangent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -770,19 +709,57 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +);
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--__asm("
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"atan: %s error\\n\\0\"
 -.even
--	.globl _atan
--_atan:
--    ");	/* end asm	*/
 +__asm(
 +".even\t\n"
 +"	.globl _atan\t\n"
 +"_atan:\t\n"
 +    );	/* end asm	*/
  
+-
+-| pml compatible atangent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
+-
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-# endif	ERROR_CHECK
+-
+-__asm("
+-.even
+-	.globl _atan
+-_atan:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -800,11 +777,28 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -313,42 +313,42 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x540a,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0\n"
++"	movew	#0x540a,a0@(comm)	| specify function\n"
++"	cmpiw	#0x8900,a0@(resp)	| check\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"	movew	#0x7400,a0@(comm)	| result to d0\n"
++"	.long	0x0c688900, 0xfff067f8	| wait\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -865,6 +859,7 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
 -	addl	#12,a7		|
 -	moveml	a7@+,d0-d1
 -    ");
+-# endif	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -873,12 +868,14 @@ diff -aurN pml-2.03/pmlsrc/atan.c pml-2.03-mint-20110207/pmlsrc/atan.c
 +"	addl	#12,a7		|\t\n"
 +"	moveml	a7@+,d0-d1\t\n"
 +    );
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/atan2.c pml-2.03-mint-20110207/pmlsrc/atan2.c
---- pml-2.03/pmlsrc/atan2.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/atan2.c	2011-02-07 22:54:57.187500000 +0100
+ 
+Index: pmlsrc/atan2.c
+===================================================================
+--- pmlsrc/atan2.c	(Revision 2)
++++ pmlsrc/atan2.c	(Arbeitskopie)
 @@ -111,7 +111,7 @@
  	    xcpt.arg1 = x;
  	    xcpt.retval = result;
@@ -888,7 +885,7 @@ diff -aurN pml-2.03/pmlsrc/atan2.c pml-2.03-mint-20110207/pmlsrc/atan2.c
  		errno = EDOM;
  	    }
  	} else {
-@@ -126,58 +126,58 @@
+@@ -126,155 +126,155 @@
      return (result);
  }
  
@@ -901,50 +898,6 @@ diff -aurN pml-2.03/pmlsrc/atan2.c pml-2.03-mint-20110207/pmlsrc/atan2.c
 -_funcname:
 -	.ascii	\"atan2\\0\"
 -	.even
--
--.globl	_atan2
--_atan2:
--| denormalized numbers are treated as 0
--	tstl	sp@(12)
--	beq	5f		| x == 0!
--	blt	1f		| x < 0!
--				| x > 0: return atan(y/x)
--
--	fmoved	sp@(4),fp0	| get y
--	fdivd	sp@(12),fp0	| y/x	
--	fatanx	fp0,fp0		| atan(y/x)
--	bra 3f			| return
--1:				| x < 0
--
--	fmovecr	#0,fp1		| get pi
--	fmoved	sp@(4),fp0	| get y
--	fdivd	sp@(12),fp0	| y/x
--	fatanx	fp0,fp0		| atan(y/x)
--	btst	#31,sp@(4)	| sign(y)
--	beq	2f		| positive!
--
--	fnegx	fp1,fp1		| transfer sign
--2:	faddx	fp1,fp0		| sign(y)*pi + atan(y/x)
--|	bra 3f			| return
--3:
--	fmoved	fp0,sp@-	| return result
--	moveml	sp@+,d0/d1
--4:	
--	rts			| sigh.
--5:				| x == 0
--	movel	#1073291771,d0	| pi/2
--	movel	#1413754136,d1	|
--
--	tstl	sp@(4)		| 
--	beq	6f		| NaN
--	bge	4b		| exit
--	bset	#31,d0		| x < 0 : return -pi/2
--	bra	4b
--6:	movel	#-1,d0		| NaN
--	movel	#-1,d1		|
--	bra	4b
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +".even\t\n"
@@ -996,17 +949,251 @@ diff -aurN pml-2.03/pmlsrc/atan2.c pml-2.03-mint-20110207/pmlsrc/atan2.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-.globl	_atan2
+-_atan2:
+-| denormalized numbers are treated as 0
+-	tstl	sp@(12)
+-	beq	5f		| x == 0!
+-	blt	1f		| x < 0!
+-				| x > 0: return atan(y/x)
+-
+-	fmoved	sp@(4),fp0	| get y
+-	fdivd	sp@(12),fp0	| y/x	
+-	fatanx	fp0,fp0		| atan(y/x)
+-	bra 3f			| return
+-1:				| x < 0
+-
+-	fmovecr	#0,fp1		| get pi
+-	fmoved	sp@(4),fp0	| get y
+-	fdivd	sp@(12),fp0	| y/x
+-	fatanx	fp0,fp0		| atan(y/x)
+-	btst	#31,sp@(4)	| sign(y)
+-	beq	2f		| positive!
+-
+-	fnegx	fp1,fp1		| transfer sign
+-2:	faddx	fp1,fp0		| sign(y)*pi + atan(y/x)
+-|	bra 3f			| return
+-3:
+-	fmoved	fp0,sp@-	| return result
+-	moveml	sp@+,d0/d1
+-4:	
+-	rts			| sigh.
+-5:				| x == 0
+-	movel	#1073291771,d0	| pi/2
+-	movel	#1413754136,d1	|
+-
+-	tstl	sp@(4)		| 
+-	beq	6f		| NaN
+-	bge	4b		| exit
+-	bset	#31,d0		| x < 0 : return -pi/2
+-	bra	4b
+-6:	movel	#-1,d0		| NaN
+-	movel	#-1,d1		|
+-	bra	4b
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
- __asm("
-@@ -277,4 +277,4 @@
- 	movel	#-1,d1		|
- 	bra	4b
- ");	/* end asm	*/
+-__asm("
+-
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-
+-.even
+-.text
+-.even
+-_funcname:
+-	.ascii	\"atan2\\0\"
+-	.even
+-.text
+-.even
+-.globl	_atan2
+-_atan2:
+-| denormalized numbers are treated as 0
+-	lea	0xfffa50,a0
+-	moveml	a7@(12),d0-d1	|  x
+-	tstl	d0
+-	beq	5f		| x == 0!
+-	blt	1f		| x < 0!
+-				| x > 0: return atan(y/x)
+-
+-|	fmoved	sp@(4),fp0	| get y
+-	movew	#0x5400,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-	movel	sp@(4),a0@
+-	movel	sp@(8),a0@
+-
+-|	fdivd	sp@(12),fp0	| y/x
+-	movew	#0x5420,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-	movel	d0,a0@
+-	movel	d1,a0@
+-
+-|	fatanx	fp0,fp0		| atan(y/x)
+-	movew	#0x000a,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa
+-
+-	bra 3f			| return
+-1:				| x < 0
+-
+-|	fmovecr	#0,fp1		| get pi
+-	movew	#0x5c80,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-
+-|	fmoved	sp@(4),fp0	| get y
+-	movew	#0x5400,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-	movel	sp@(4),a0@
+-	movel	sp@(8),a0@
+-
+-|	fdivd	sp@(12),fp0	| y/x
+-	movew	#0x5420,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-	movel	d0,a0@
+-	movel	d1,a0@
+-
+-|	fatanx	fp0,fp0		| atan(y/x)
+-	movew	#0x000a,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa
+-
+-	btst	#31,sp@(4)	| sign(y)
+-	beq	2f		| positive!
+-
+-|	fnegx	fp1,fp1		| transfer sign
+-	movew	#0x049a,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa
+-
+-2:|	faddx	fp1,fp0		| sign(y)*pi + atan(y/x)
+-	movew	#0x0422,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa
+-
+-|	bra 3f			| return
+-3:
+-|	fmoved	fp0,d0-d1	| return result
+-	movew	#0x7400,a0@(comm)
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a0@,d0
+-	movel	a0@,d1
+-
+-4:	
+-	rts			| sigh.
+-5:				| x == 0
+-	movel	#1073291771,d0	| pi/2
+-	movel	#1413754136,d1	|
+-
+-	tstl	sp@(4)		| 
+-	beq	6f		| NaN
+-	bge	4b		| exit
+-	bset	#31,d0		| x < 0 : return -pi/2
+-	bra	4b
+-6:	movel	#-1,d0		| NaN
+-	movel	#-1,d1		|
+-	bra	4b
+-");	/* end asm	*/
 -#endif	sfp004
++__asm(
++"\n"
++"comm =	 -6\n"
++"resp =	-16\n"
++"zahl =	  0\n"
++"\n"
++".even\n"
++".text\n"
++".even\n"
++"_funcname:\n"
++"	.ascii	\"atan2\\0\"\n"
++"	.even\n"
++".text\n"
++".even\n"
++".globl	_atan2\n"
++"_atan2:\n"
++"| denormalized numbers are treated as 0\n"
++"	lea	0xfffa50,a0\n"
++"	moveml	a7@(12),d0-d1	|  x\n"
++"	tstl	d0\n"
++"	beq	5f		| x == 0!\n"
++"	blt	1f		| x < 0!\n"
++"				| x > 0: return atan(y/x)\n"
++"\n"
++"|	fmoved	sp@(4),fp0	| get y\n"
++"	movew	#0x5400,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	sp@(4),a0@\n"
++"	movel	sp@(8),a0@\n"
++"\n"
++"|	fdivd	sp@(12),fp0	| y/x\n"
++"	movew	#0x5420,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	d0,a0@\n"
++"	movel	d1,a0@\n"
++"\n"
++"|	fatanx	fp0,fp0		| atan(y/x)\n"
++"	movew	#0x000a,a0@(comm)\n"
++"	.word	0x4a68,0xfff0,0x6bfa\n"
++"\n"
++"	bra 3f			| return\n"
++"1:				| x < 0\n"
++"\n"
++"|	fmovecr	#0,fp1		| get pi\n"
++"	movew	#0x5c80,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"\n"
++"|	fmoved	sp@(4),fp0	| get y\n"
++"	movew	#0x5400,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	sp@(4),a0@\n"
++"	movel	sp@(8),a0@\n"
++"\n"
++"|	fdivd	sp@(12),fp0	| y/x\n"
++"	movew	#0x5420,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	d0,a0@\n"
++"	movel	d1,a0@\n"
++"\n"
++"|	fatanx	fp0,fp0		| atan(y/x)\n"
++"	movew	#0x000a,a0@(comm)\n"
++"	.word	0x4a68,0xfff0,0x6bfa\n"
++"\n"
++"	btst	#31,sp@(4)	| sign(y)\n"
++"	beq	2f		| positive!\n"
++"\n"
++"|	fnegx	fp1,fp1		| transfer sign\n"
++"	movew	#0x049a,a0@(comm)\n"
++"	.word	0x4a68,0xfff0,0x6bfa\n"
++"\n"
++"2:|	faddx	fp1,fp0		| sign(y)*pi + atan(y/x)\n"
++"	movew	#0x0422,a0@(comm)\n"
++"	.word	0x4a68,0xfff0,0x6bfa\n"
++"\n"
++"|	bra 3f			| return\n"
++"3:\n"
++"|	fmoved	fp0,d0-d1	| return result\n"
++"	movew	#0x7400,a0@(comm)\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++"\n"
++"4:	\n"
++"	rts			| sigh.\n"
++"5:				| x == 0\n"
++"	movel	#1073291771,d0	| pi/2\n"
++"	movel	#1413754136,d1	|\n"
++"\n"
++"	tstl	sp@(4)		| \n"
++"	beq	6f		| NaN\n"
++"	bge	4b		| exit\n"
++"	bset	#31,d0		| x < 0 : return -pi/2\n"
++"	bra	4b\n"
++"6:	movel	#-1,d0		| NaN\n"
++"	movel	#-1,d1		|\n"
++"	bra	4b\n"
++);	/* end asm	*/
 +#endif /* sfp004 */
-diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
---- pml-2.03/pmlsrc/atanh.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/atanh.c	2011-02-07 22:54:57.187500000 +0100
+Index: pmlsrc/atanh.c
+===================================================================
+--- pmlsrc/atanh.c	(Revision 2)
++++ pmlsrc/atanh.c	(Arbeitskopie)
 @@ -84,7 +84,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -1016,9 +1203,20 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
  	    errno = ERANGE;
  	    xcpt.retval = HUGE_VAL;
  	}
-@@ -102,66 +102,66 @@
- zahl =	  0
- ");	/* end asm	*/
+@@ -96,150 +96,150 @@
+ #endif
+ #ifdef	sfp004
+ 
+-__asm("
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-");	/* end asm	*/
++__asm(
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -1028,41 +1226,6 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"atanh: %s error\\n\\0\"
--.even
--| pml compatible atanhgent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -1099,19 +1262,55 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +);
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--__asm("
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"atanh: %s error\\n\\0\"
 -.even
--	.globl _atanh
--_atanh:
--    ");	/* end asm	*/
+-| pml compatible atanhgent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +__asm(
 +".even\t\n"
 +"	.globl _atanh\t\n"
 +"_atanh:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-# endif	ERROR_CHECK
+-
+-__asm("
+-.even
+-	.globl _atanh
+-_atanh:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -1129,11 +1328,28 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -175,70 +175,70 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x540d,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x540d,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -1250,6 +1466,7 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
 -	addl	#12,a7		|
 -	moveml	a7@+,d0-d1
 -    ");
+-# endif	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -1258,12 +1475,14 @@ diff -aurN pml-2.03/pmlsrc/atanh.c pml-2.03-mint-20110207/pmlsrc/atanh.c
 +"	addl	#12,a7		|\t\n"
 +"	moveml	a7@+,d0-d1\t\n"
 +    );
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
  __asm("	rts");
-diff -aurN pml-2.03/pmlsrc/cabs.c pml-2.03-mint-20110207/pmlsrc/cabs.c
---- pml-2.03/pmlsrc/cabs.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cabs.c	2011-02-07 22:54:57.203125000 +0100
+ 
+Index: pmlsrc/cabs.c
+===================================================================
+--- pmlsrc/cabs.c	(Revision 2)
++++ pmlsrc/cabs.c	(Arbeitskopie)
 @@ -73,59 +73,59 @@
  
  # ifdef	ERROR_CHECK
@@ -1478,10 +1697,11 @@ diff -aurN pml-2.03/pmlsrc/cabs.c pml-2.03-mint-20110207/pmlsrc/cabs.c
  # else	ERROR_CHECK
  __asm("rts");
  # endif	ERROR_CHECK
-diff -aurN pml-2.03/pmlsrc/cadd.c pml-2.03-mint-20110207/pmlsrc/cadd.c
---- pml-2.03/pmlsrc/cadd.c	1994-03-19 15:40:10.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cadd.c	2011-02-07 22:54:57.203125000 +0100
-@@ -78,25 +78,25 @@
+Index: pmlsrc/cadd.c
+===================================================================
+--- pmlsrc/cadd.c	(Revision 2)
++++ pmlsrc/cadd.c	(Arbeitskopie)
+@@ -78,85 +78,85 @@
      z1.imag += z2.imag;
      return (z1);
  }
@@ -1523,14 +1743,103 @@ diff -aurN pml-2.03/pmlsrc/cadd.c pml-2.03-mint-20110207/pmlsrc/cadd.c
 +#endif /* __M68881__ */
  
  #ifdef	sfp004
- __asm("
-@@ -146,17 +146,17 @@
- 	movel	a0@(zahl),a1@(8)
- 	movel	a0@(zahl),a1@(12)
- ");	/* end asm	*/
--#endif	sfp004
+-__asm("
++__asm(
++"\n"
++"comm =	 -6\n"
++"resp =	-16\n"
++"zahl =	  0\n"
++"\n"
++".text\n"
++"_funcname:\n"
++"	.ascii	\"cadd\\0\"\n"
++".text\n"
++".even\n"
++".globl	_cadd\n"
++"_cadd:\n"
++"	lea	0xfffa50,a0\n"
++"	movew	#0x5400,a0@(comm)	| z1.real -> fp0\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"\n"
++"	movew	#0x5422,a0@(comm)	| fp0 += z2.real\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a7@(20),a0@		| load arg_hi\n"
++"	movel	a7@(24),a0@		| load arg_low\n"
++"\n"
++"	movew	#0x5480,a0@(comm)	| z1.imag -> fp1\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a7@(12),a0@		| load arg_hi\n"
++"	movel	a7@(16),a0@		| load arg_low\n"
++"\n"
++"	movew	#0x54a2,a0@(comm)	| fp1 += z2.imag\n"
++"	movel	a1,d0			| pointer to result\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a7@(28),a0@		| load arg_hi\n"
++"	movel	a7@(32),a0@		| load arg_low\n"
++"\n"
++"|	movew	#%0111 0101 0000 0000,a0@(comm)	| fetch fp0\n"
++"	movew	#0x7400,a0@(comm)		| \n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a0@(zahl),a1@\n"
++"	movel	a0@(zahl),a1@(4)\n"
++"\n"
++"|	movew	#%0111 0100 1000 0000,a0@(comm)	| fetch fp1\n"
++"	movew	#0x7480,a0@(comm)		|\n"
++"	.long	0x0c688900, 0xfff067f8\n"
++"	movel	a0@(zahl),a1@(8)\n"
++"	movel	a0@(zahl),a1@(12)\n"
++);	/* end asm	*/
 +#endif /* sfp004 */
  
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-
+-.text
+-_funcname:
+-	.ascii	\"cadd\\0\"
+-.text
+-.even
+-.globl	_cadd
+-_cadd:
+-	lea	0xfffa50,a0
+-	movew	#0x5400,a0@(comm)	| z1.real -> fp0
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-
+-	movew	#0x5422,a0@(comm)	| fp0 += z2.real
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(20),a0@		| load arg_hi
+-	movel	a7@(24),a0@		| load arg_low
+-
+-	movew	#0x5480,a0@(comm)	| z1.imag -> fp1
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(12),a0@		| load arg_hi
+-	movel	a7@(16),a0@		| load arg_low
+-
+-	movew	#0x54a2,a0@(comm)	| fp1 += z2.imag
+-	movel	a1,d0			| pointer to result
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(28),a0@		| load arg_hi
+-	movel	a7@(32),a0@		| load arg_low
+-
+-|	movew	#%0111 0101 0000 0000,a0@(comm)	| fetch fp0
+-	movew	#0x7400,a0@(comm)		| 
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a0@(zahl),a1@
+-	movel	a0@(zahl),a1@(4)
+-
+-|	movew	#%0111 0100 1000 0000,a0@(comm)	| fetch fp1
+-	movew	#0x7480,a0@(comm)		|
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a0@(zahl),a1@(8)
+-	movel	a0@(zahl),a1@(12)
+-");	/* end asm	*/
+-#endif	sfp004
+-
  #if defined (__M68881__) || defined (sfp004)
  # ifdef ERROR_CHECK	/* no error checking for now	*/
 -__asm("
@@ -1550,10 +1859,11 @@ diff -aurN pml-2.03/pmlsrc/cadd.c pml-2.03-mint-20110207/pmlsrc/cadd.c
 -#endif defined (__M68881__) || defined (sfp004)
 +# endif /* ERROR_CHECK */
 +#endif /* defined (__M68881__) || defined (sfp004) */
-diff -aurN pml-2.03/pmlsrc/ccos.c pml-2.03-mint-20110207/pmlsrc/ccos.c
---- pml-2.03/pmlsrc/ccos.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/ccos.c	2011-02-07 22:54:57.218750000 +0100
-@@ -77,40 +77,40 @@
+Index: pmlsrc/ccos.c
+===================================================================
+--- pmlsrc/ccos.c	(Revision 2)
++++ pmlsrc/ccos.c	(Arbeitskopie)
+@@ -77,41 +77,41 @@
      result.imag = -sin(z.real) * sinh(z.imag);
      return (result);
  }
@@ -1588,17 +1898,6 @@ diff -aurN pml-2.03/pmlsrc/ccos.c pml-2.03-mint-20110207/pmlsrc/ccos.c
 -	fsinx	fp0,fp1		| cos(z.real)
 -	fcosx	fp0,fp0		| sin(z.real)
 -	fnegx	fp1,fp1		|-sin(z.real)
--
--	fmoved	sp@(12),fp3	| z.imag
--	fcoshx	fp3,fp2		| cosh(z.imag)
--	fsinhx	fp3,fp3		| sinh(z.imag)
--	
--	fmulx	fp2,fp0		| result.real
--	fmoved	fp0,a1@		|
--	fmulx	fp3,fp1		| result.imag
--	fmoved	fp1,a1@(8)	|
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +"	.globl _ccos\t\n"
@@ -1620,8 +1919,20 @@ diff -aurN pml-2.03/pmlsrc/ccos.c pml-2.03-mint-20110207/pmlsrc/ccos.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-	fmoved	sp@(12),fp3	| z.imag
+-	fcoshx	fp3,fp2		| cosh(z.imag)
+-	fsinhx	fp3,fp3		| sinh(z.imag)
+-	
+-	fmulx	fp2,fp0		| result.real
+-	fmoved	fp0,a1@		|
+-	fmulx	fp3,fp1		| result.imag
+-	fmoved	fp1,a1@(8)	|
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
  __asm("
+ | double precision floating point stuff for Atari-gcc using the SFP004
 @@ -186,18 +186,18 @@
  	movel	a0@,a1@(8)
  	movel	a0@,a1@(12)
@@ -1648,9 +1959,10 @@ diff -aurN pml-2.03/pmlsrc/ccos.c pml-2.03-mint-20110207/pmlsrc/ccos.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
---- pml-2.03/pmlsrc/cdiv.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cdiv.c	2011-02-07 22:54:57.234375000 +0100
+Index: pmlsrc/cdiv.c
+===================================================================
+--- pmlsrc/cdiv.c	(Revision 2)
++++ pmlsrc/cdiv.c	(Arbeitskopie)
 @@ -92,7 +92,7 @@
  	xcpt.name = "cdiv";
  	xcpt.arg1 = denom;
@@ -1660,7 +1972,7 @@ diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
  	    xcpt.retval = 0.0;	/* useless in this context */
  	    errno = ERANGE;	/* should be EDOM if real or imag == 0	*/
  	}
-@@ -102,53 +102,53 @@
+@@ -102,10 +102,10 @@
  	if( result.imag >= 0.0) result.imag = HUGE_VAL;
  					/* still wrong, == 0 should yield NAN */
  	else			result.imag = -HUGE_VAL;	
@@ -1673,6 +1985,7 @@ diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
      } else {
  	result.real /= denom;
  	result.imag /= denom;
+@@ -112,44 +112,44 @@
      }
      return (result);
  }
@@ -1685,35 +1998,6 @@ diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
 -_funcname:
 -	.ascii	\"cdiv\\0\"
 -	.even
--
--.globl	_cdiv
--_cdiv:
--	fmoved	sp@(4),fp0
--	fmoved	sp@(12),fp1
--	fmoved	sp@(20),fp2
--	fmoved	sp@(28),fp3
--	fmovex	fp0,fp4
--	movel	a1,d0		| pointer to result
--
--	fmovex	fp2,fp5
--	fmulx	fp2,fp5
--	fmovex	fp3,fp6
--	fmulx	fp3,fp6
--	faddx	fp6,fp5
--
--	fmulx	fp2,fp4
--	fmulx	fp3,fp0
--	fmulx	fp1,fp2	
--	fmulx	fp1,fp3
--	faddx	fp3,fp4
--	fdivx	fp5,fp4
--	fsubx	fp0,fp2
--	fdivx	fp5,fp2
--
--	fmoved	fp4,a1@
--	fmoved	fp2,a1@(8)
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +".even\t\n"
@@ -1750,8 +2034,38 @@ diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-.globl	_cdiv
+-_cdiv:
+-	fmoved	sp@(4),fp0
+-	fmoved	sp@(12),fp1
+-	fmoved	sp@(20),fp2
+-	fmoved	sp@(28),fp3
+-	fmovex	fp0,fp4
+-	movel	a1,d0		| pointer to result
+-
+-	fmovex	fp2,fp5
+-	fmulx	fp2,fp5
+-	fmovex	fp3,fp6
+-	fmulx	fp3,fp6
+-	faddx	fp6,fp5
+-
+-	fmulx	fp2,fp4
+-	fmulx	fp3,fp0
+-	fmulx	fp1,fp2	
+-	fmulx	fp1,fp3
+-	faddx	fp3,fp4
+-	fdivx	fp5,fp4
+-	fsubx	fp0,fp2
+-	fdivx	fp5,fp2
+-
+-	fmoved	fp4,a1@
+-	fmoved	fp2,a1@(8)
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
  __asm("
+ 
 @@ -250,19 +250,19 @@
  	movel	a0@,a1@(8)
  	movel	a0@,a1@(12)
@@ -1779,9 +2093,10 @@ diff -aurN pml-2.03/pmlsrc/cdiv.c pml-2.03-mint-20110207/pmlsrc/cdiv.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/cerr.cpp pml-2.03-mint-20110207/pmlsrc/cerr.cpp
---- pml-2.03/pmlsrc/cerr.cpp	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cerr.cpp	2011-02-07 22:54:57.234375000 +0100
+Index: pmlsrc/cerr.cpp
+===================================================================
+--- pmlsrc/cerr.cpp	(Revision 2)
++++ pmlsrc/cerr.cpp	(Arbeitskopie)
 @@ -70,7 +70,7 @@
  #endif	__MSHORT__
  error_exit:
@@ -1800,9 +2115,10 @@ diff -aurN pml-2.03/pmlsrc/cerr.cpp pml-2.03-mint-20110207/pmlsrc/cerr.cpp
  	addqw	#8,a7		|
  	moveml	a7@+,d0/a1
  
-diff -aurN pml-2.03/pmlsrc/cerr.s pml-2.03-mint-20110207/pmlsrc/cerr.s
---- pml-2.03/pmlsrc/cerr.s	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cerr.s	2011-02-07 22:54:57.250000000 +0100
+Index: pmlsrc/cerr.s
+===================================================================
+--- pmlsrc/cerr.s	(Revision 2)
++++ pmlsrc/cerr.s	(Arbeitskopie)
 @@ -50,7 +50,7 @@
  	pea	Domain		| for printf
  error_exit:
@@ -1821,9 +2137,10 @@ diff -aurN pml-2.03/pmlsrc/cerr.s pml-2.03-mint-20110207/pmlsrc/cerr.s
  	addw	#12,a7		|
  	moveml	a7@+,d0/a1
  
-diff -aurN pml-2.03/pmlsrc/cexp.c pml-2.03-mint-20110207/pmlsrc/cexp.c
---- pml-2.03/pmlsrc/cexp.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cexp.c	2011-02-07 22:54:57.250000000 +0100
+Index: pmlsrc/cexp.c
+===================================================================
+--- pmlsrc/cexp.c	(Revision 2)
++++ pmlsrc/cexp.c	(Arbeitskopie)
 @@ -83,36 +83,36 @@
  
  #else	!defined (__M68881__) && !defined (sfp004)
@@ -1913,10 +2230,11 @@ diff -aurN pml-2.03/pmlsrc/cexp.c pml-2.03-mint-20110207/pmlsrc/cexp.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/cmult.c pml-2.03-mint-20110207/pmlsrc/cmult.c
---- pml-2.03/pmlsrc/cmult.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cmult.c	2011-02-07 22:54:57.265625000 +0100
-@@ -79,36 +79,36 @@
+Index: pmlsrc/cmult.c
+===================================================================
+--- pmlsrc/cmult.c	(Revision 2)
++++ pmlsrc/cmult.c	(Arbeitskopie)
+@@ -79,37 +79,37 @@
  
      return (result);
  }
@@ -1929,28 +2247,6 @@ diff -aurN pml-2.03/pmlsrc/cmult.c pml-2.03-mint-20110207/pmlsrc/cmult.c
 -_funcname:
 -	.ascii	\"cmult\\0\"
 -	.even
--
--.globl	_cmult
--_cmult:
--	fmoved	sp@(4),fp0
--	fmoved	sp@(12),fp1
--	fmoved	sp@(20),fp2
--	fmoved	sp@(28),fp3
--	fmovex	fp0,fp4
--	movel	a1,d0		| pointer to result
--
--	fmulx	fp2,fp4
--	fmulx	fp3,fp0
--	fmulx	fp1,fp2
--	fmulx	fp1,fp3
--
--	fsubx	fp3,fp4
--	faddx	fp0,fp2
--
--	fmoved	fp4,a1@
--	fmoved	fp2,a1@(8)
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +".even\t\n"
@@ -1980,8 +2276,31 @@ diff -aurN pml-2.03/pmlsrc/cmult.c pml-2.03-mint-20110207/pmlsrc/cmult.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-.globl	_cmult
+-_cmult:
+-	fmoved	sp@(4),fp0
+-	fmoved	sp@(12),fp1
+-	fmoved	sp@(20),fp2
+-	fmoved	sp@(28),fp3
+-	fmovex	fp0,fp4
+-	movel	a1,d0		| pointer to result
+-
+-	fmulx	fp2,fp4
+-	fmulx	fp3,fp0
+-	fmulx	fp1,fp2
+-	fmulx	fp1,fp3
+-
+-	fsubx	fp3,fp4
+-	faddx	fp0,fp2
+-
+-	fmoved	fp4,a1@
+-	fmoved	fp2,a1@(8)
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
  __asm("
+ 
 @@ -185,19 +185,19 @@
  	movel	a0@,a1@(8)
  	movel	a0@,a1@(12)
@@ -2009,12 +2328,26 @@ diff -aurN pml-2.03/pmlsrc/cmult.c pml-2.03-mint-20110207/pmlsrc/cmult.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/cos.c pml-2.03-mint-20110207/pmlsrc/cos.c
---- pml-2.03/pmlsrc/cos.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cos.c	2011-02-07 22:54:57.281250000 +0100
-@@ -194,116 +194,116 @@
+Index: pmlsrc/cos.c
+===================================================================
+--- pmlsrc/cos.c	(Revision 2)
++++ pmlsrc/cos.c	(Arbeitskopie)
+@@ -186,125 +186,125 @@
+ #endif	/* !__M68881 && !sfp004	*/
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -2024,48 +2357,6 @@ diff -aurN pml-2.03/pmlsrc/cos.c pml-2.03-mint-20110207/pmlsrc/cos.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"cos: %s error\\n\\0\"
--.even
--| pml compatible cosgent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
--#endif	ERROR_CHECK
--
--__asm("
--.even
--	.globl _cos
--_cos:
--");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -2103,13 +2394,54 @@ diff -aurN pml-2.03/pmlsrc/cos.c pml-2.03-mint-20110207/pmlsrc/cos.c
 +"	.long	0x00000000\t\n"
 +);
 +#endif /* ERROR_CHECK */
-+
+ 
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"cos: %s error\\n\\0\"
+-.even
+-| pml compatible cosgent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +__asm(
 +".even\t\n"
 +"	.globl _cos\t\n"
 +"_cos:\t\n"
 +);	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-#endif	ERROR_CHECK
+-
+-__asm("
+-.even
+-	.globl _cos
+-_cos:
+-");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -2210,6 +2542,7 @@ diff -aurN pml-2.03/pmlsrc/cos.c pml-2.03-mint-20110207/pmlsrc/cos.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -2219,12 +2552,15 @@ diff -aurN pml-2.03/pmlsrc/cos.c pml-2.03-mint-20110207/pmlsrc/cos.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  __asm("rts");
- # endif	ERROR_CHECK
-diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
---- pml-2.03/pmlsrc/cosh.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/cosh.c	2011-02-07 22:54:57.281250000 +0100
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/cosh.c
+===================================================================
+--- pmlsrc/cosh.c	(Revision 2)
++++ pmlsrc/cosh.c	(Arbeitskopie)
 @@ -83,7 +83,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -2243,9 +2579,22 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
  	    errno = ERANGE;
  	    xcpt.retval = MINDOUBLE;
  	}
-@@ -112,66 +112,66 @@
+@@ -104,155 +104,155 @@
+ }
+ #endif	/* !__M68881__ && !sfp004	*/
+ #ifdef	sfp004
+-__asm("
++__asm(
  
- ");	/* end asm	*/
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -2255,41 +2604,6 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"cosh: %s error\\n\\0\"
--.even
--| pml compatible coshgent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -2326,19 +2640,55 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--__asm("
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"cosh: %s error\\n\\0\"
 -.even
--	.globl _cosh
--_cosh:
--    ");	/* end asm	*/
+-| pml compatible coshgent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +__asm(
 +".even\t\n"
 +"	.globl _cosh\t\n"
 +"_cosh:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-__asm("
+-.even
+-	.globl _cosh
+-_cosh:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -2356,11 +2706,28 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -185,71 +185,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5419,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x5419,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -2478,6 +2845,7 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -2487,12 +2855,17 @@ diff -aurN pml-2.03/pmlsrc/cosh.c pml-2.03-mint-20110207/pmlsrc/cosh.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/crcp.c pml-2.03-mint-20110207/pmlsrc/crcp.c
---- pml-2.03/pmlsrc/crcp.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/crcp.c	2011-02-07 22:54:57.296875000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/crcp.c
+===================================================================
+--- pmlsrc/crcp.c	(Revision 2)
++++ pmlsrc/crcp.c	(Arbeitskopie)
 @@ -79,7 +79,7 @@
  	xcpt.name = "crcp";
  	xcpt.arg1 = denom;
@@ -2502,10 +2875,11 @@ diff -aurN pml-2.03/pmlsrc/crcp.c pml-2.03-mint-20110207/pmlsrc/crcp.c
  	    errno = ERANGE;
  	    xcpt.retval = 0.0;	/* useless in this context */
  	}
-diff -aurN pml-2.03/pmlsrc/csin.c pml-2.03-mint-20110207/pmlsrc/csin.c
---- pml-2.03/pmlsrc/csin.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/csin.c	2011-02-07 22:54:57.296875000 +0100
-@@ -76,39 +76,39 @@
+Index: pmlsrc/csin.c
+===================================================================
+--- pmlsrc/csin.c	(Revision 2)
++++ pmlsrc/csin.c	(Arbeitskopie)
+@@ -76,40 +76,40 @@
      result.imag = cos (z.real) * sinh (z.imag);
      return (result);
  }
@@ -2539,17 +2913,6 @@ diff -aurN pml-2.03/pmlsrc/csin.c pml-2.03-mint-20110207/pmlsrc/csin.c
 -	fmoved	sp@(4),fp0	| z.real
 -	fcosx	fp0,fp1		| cos(z.real)
 -	fsinx	fp0,fp0		| sin(z.real)
--
--	fmoved	sp@(12),fp3	| z.imag
--	fcoshx	fp3,fp2		| cosh(z.imag)
--	fsinhx	fp3,fp3		| sinh(z.imag)
--	
--	fmulx	fp2,fp0		| result.real
--	fmoved	fp0,a1@		|
--	fmulx	fp3,fp1		| result.imag
--	fmoved	fp1,a1@(8)	|
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +"	.globl _csin\t\n"
@@ -2570,8 +2933,20 @@ diff -aurN pml-2.03/pmlsrc/csin.c pml-2.03-mint-20110207/pmlsrc/csin.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-	fmoved	sp@(12),fp3	| z.imag
+-	fcoshx	fp3,fp2		| cosh(z.imag)
+-	fsinhx	fp3,fp3		| sinh(z.imag)
+-	
+-	fmulx	fp2,fp0		| result.real
+-	fmoved	fp0,a1@		|
+-	fmulx	fp3,fp1		| result.imag
+-	fmoved	fp1,a1@(8)	|
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
  __asm("
+ | double precision floating point stuff for Atari-gcc using the SFP004
 @@ -181,18 +181,18 @@
  	movel	a0@,a1@(8)
  	movel	a0@,a1@(12)
@@ -2598,10 +2973,11 @@ diff -aurN pml-2.03/pmlsrc/csin.c pml-2.03-mint-20110207/pmlsrc/csin.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/csubt.c pml-2.03-mint-20110207/pmlsrc/csubt.c
---- pml-2.03/pmlsrc/csubt.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/csubt.c	2011-02-07 22:54:57.312500000 +0100
-@@ -77,27 +77,27 @@
+Index: pmlsrc/csubt.c
+===================================================================
+--- pmlsrc/csubt.c	(Revision 2)
++++ pmlsrc/csubt.c	(Arbeitskopie)
+@@ -77,28 +77,28 @@
      z1.imag -= z2.imag;
      return (z1);
  }
@@ -2615,18 +2991,6 @@ diff -aurN pml-2.03/pmlsrc/csubt.c pml-2.03-mint-20110207/pmlsrc/csubt.c
 -_funcname:
 -	.ascii	\"csubt\\0\"
 -	.even
--
--.globl	_csubt
--_csubt:
--	fmoved	sp@(4),fp0
--	fsubd	sp@(20),fp0
--	fmoved	sp@(12),fp1
--	fsubd	sp@(28),fp1
--	movel	a1,d0		| pointer to result
--	fmoved	fp0,a1@		| return z.real
--	fmoved	fp1,a1@(8)	| return z.imag
--");	/* end asm	*/
--#endif	__M68881__
 +__asm(
 +".text\t\n"
 +".even\t\n"
@@ -2646,8 +3010,21 @@ diff -aurN pml-2.03/pmlsrc/csubt.c pml-2.03-mint-20110207/pmlsrc/csubt.c
 +);	/* end asm	*/
 +#endif /* __M68881__ */
  
+-.globl	_csubt
+-_csubt:
+-	fmoved	sp@(4),fp0
+-	fsubd	sp@(20),fp0
+-	fmoved	sp@(12),fp1
+-	fsubd	sp@(28),fp1
+-	movel	a1,d0		| pointer to result
+-	fmoved	fp0,a1@		| return z.real
+-	fmoved	fp1,a1@(8)	| return z.imag
+-");	/* end asm	*/
+-#endif	__M68881__
+-
  #ifdef	sfp004
  __asm("
+ 
 @@ -150,19 +150,19 @@
  	movel	a0@(zahl),a1@(8)
  	movel	a0@(zahl),a1@(12)
@@ -2675,9 +3052,10 @@ diff -aurN pml-2.03/pmlsrc/csubt.c pml-2.03-mint-20110207/pmlsrc/csubt.c
 -# endif ERROR_CHECK
 +# endif /* ERROR_CHECK */
  #endif defined (__M68881__) || defined (sfp004)
-diff -aurN pml-2.03/pmlsrc/ctan.c pml-2.03-mint-20110207/pmlsrc/ctan.c
---- pml-2.03/pmlsrc/ctan.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/ctan.c	2011-02-07 22:54:57.328125000 +0100
+Index: pmlsrc/ctan.c
+===================================================================
+--- pmlsrc/ctan.c	(Revision 2)
++++ pmlsrc/ctan.c	(Arbeitskopie)
 @@ -78,7 +78,7 @@
  
      if (ccosz.real == 0.0 && ccosz.imag == 0.0) {
@@ -2699,10 +3077,11 @@ diff -aurN pml-2.03/pmlsrc/ctan.c pml-2.03-mint-20110207/pmlsrc/ctan.c
      } else {
  	z = cdiv(csinz,ccosz);
      }
-diff -aurN pml-2.03/pmlsrc/dabs.c pml-2.03-mint-20110207/pmlsrc/dabs.c
---- pml-2.03/pmlsrc/dabs.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/dabs.c	2011-02-07 22:54:57.328125000 +0100
-@@ -53,20 +53,20 @@
+Index: pmlsrc/dabs.c
+===================================================================
+--- pmlsrc/dabs.c	(Revision 2)
++++ pmlsrc/dabs.c	(Arbeitskopie)
+@@ -53,21 +53,21 @@
   */
  #if !defined (OLD)	/* mjr++	*/
  
@@ -2711,13 +3090,6 @@ diff -aurN pml-2.03/pmlsrc/dabs.c pml-2.03-mint-20110207/pmlsrc/dabs.c
 -.even
 -.globl _dabs
 -.globl _fabs
--
--_dabs:
--_fabs:
--	moveml	a7@(4),d0-d1
--	bclr	#31,d0
--	rts
--");
 +__asm(
 +".text\t\n"
 +".even\t\n"
@@ -2731,20 +3103,29 @@ diff -aurN pml-2.03/pmlsrc/dabs.c pml-2.03-mint-20110207/pmlsrc/dabs.c
 +"	rts\t\n"
 +);
  
--#else OLD
+-_dabs:
+-_fabs:
+-	moveml	a7@(4),d0-d1
+-	bclr	#31,d0
+-	rts
+-");
 +#else /* OLD */
  
+-#else OLD
+-
  #include <stdio.h>
  #include <math.h>
+ #include "pml.h"
 @@ -117,4 +117,4 @@
  }
  #endif
  
 -#endif OLD
 +#endif /* OLD */
-diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
---- pml-2.03/pmlsrc/exp.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/exp.c	2011-02-07 22:54:57.343750000 +0100
+Index: pmlsrc/exp.c
+===================================================================
+--- pmlsrc/exp.c	(Revision 2)
++++ pmlsrc/exp.c	(Arbeitskopie)
 @@ -201,7 +201,7 @@
  	xcpt.arg1 = x;
  	if (!matherr (&xcpt)) {
@@ -2754,9 +3135,22 @@ diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
  	}
      } else {
  	x *= LOG2E;
-@@ -229,132 +229,132 @@
+@@ -221,143 +221,143 @@
+ #endif	/* !__M68881__ && !sfp004	*/
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -2766,8 +3160,52 @@ diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--
++    __asm(
++"\t\n"
++"\t\n"
++"_Overflow:\t\n"
++"	.ascii \"OVERFLOW\\0\"\t\n"
++"_Domain:\t\n"
++"	.ascii \"DOMAIN\\0\"\t\n"
++"_Error_String:\t\n"
++"	.ascii \"exp: %s error\\n\\0\"\t\n"
++".even\t\n"
++"\t\n"
++"| pml compatible expgent\t\n"
++"| m.ritzert 7.12.1991\t\n"
++"| ritzert@dfg.dbp.de\t\n"
++"|\t\n"
++"|    /* NAN  = {7fffffff,ffffffff}		*/\t\n"
++"|    /* +Inf = {7ff00000,00000000}		*/\t\n"
++"|    /* -Inf = {fff00000,00000000}		*/\t\n"
++"|    /* MAX_D= {7fee42d1,30773b76}		*/\t\n"
++"|    /* MIN_D= {ffee42d1,30773b76}		*/\t\n"
++"\t\n"
++".even\t\n"
++"double_max:\t\n"
++"	.long	0x7fee42d1\t\n"
++"	.long	0x30273b76\t\n"
++"double_min:\t\n"
++"	.long	0xffee42d1\t\n"
++"	.long	0x30273b76\t\n"
++"NaN:\t\n"
++"	.long	0x7fffffff\t\n"
++"	.long	0xffffffff\t\n"
++"p_Inf:\t\n"
++"	.long	0x7ff00000\t\n"
++"	.long	0x00000000\t\n"
++"m_Inf:\t\n"
++"	.long	0xfff00000\t\n"
++"	.long	0x00000000\t\n"
++);
++#endif /* ERROR_CHECK */
+ 
++__asm(
++".even\t\n"
++"	.globl _exp\t\n"
++"_exp:\t\n"
++);	/* end asm	*/
+ 
 -_Overflow:
 -	.ascii \"OVERFLOW\\0\"
 -_Domain:
@@ -2810,52 +3248,7 @@ diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
 -	.globl _exp
 -_exp:
 -");	/* end asm	*/
-+    __asm(
-+"\t\n"
-+"\t\n"
-+"_Overflow:\t\n"
-+"	.ascii \"OVERFLOW\\0\"\t\n"
-+"_Domain:\t\n"
-+"	.ascii \"DOMAIN\\0\"\t\n"
-+"_Error_String:\t\n"
-+"	.ascii \"exp: %s error\\n\\0\"\t\n"
-+".even\t\n"
-+"\t\n"
-+"| pml compatible expgent\t\n"
-+"| m.ritzert 7.12.1991\t\n"
-+"| ritzert@dfg.dbp.de\t\n"
-+"|\t\n"
-+"|    /* NAN  = {7fffffff,ffffffff}		*/\t\n"
-+"|    /* +Inf = {7ff00000,00000000}		*/\t\n"
-+"|    /* -Inf = {fff00000,00000000}		*/\t\n"
-+"|    /* MAX_D= {7fee42d1,30773b76}		*/\t\n"
-+"|    /* MIN_D= {ffee42d1,30773b76}		*/\t\n"
-+"\t\n"
-+".even\t\n"
-+"double_max:\t\n"
-+"	.long	0x7fee42d1\t\n"
-+"	.long	0x30273b76\t\n"
-+"double_min:\t\n"
-+"	.long	0xffee42d1\t\n"
-+"	.long	0x30273b76\t\n"
-+"NaN:\t\n"
-+"	.long	0x7fffffff\t\n"
-+"	.long	0xffffffff\t\n"
-+"p_Inf:\t\n"
-+"	.long	0x7ff00000\t\n"
-+"	.long	0x00000000\t\n"
-+"m_Inf:\t\n"
-+"	.long	0xfff00000\t\n"
-+"	.long	0x00000000\t\n"
-+);
-+#endif /* ERROR_CHECK */
-+
-+__asm(
-+".even\t\n"
-+"	.globl _exp\t\n"
-+"_exp:\t\n"
-+);	/* end asm	*/
- 
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -2984,6 +3377,7 @@ diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -2993,12 +3387,17 @@ diff -aurN pml-2.03/pmlsrc/exp.c pml-2.03-mint-20110207/pmlsrc/exp.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/exp10.c pml-2.03-mint-20110207/pmlsrc/exp10.c
---- pml-2.03/pmlsrc/exp10.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/exp10.c	2011-02-07 22:54:57.343750000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/exp10.c
+===================================================================
+--- pmlsrc/exp10.c	(Revision 2)
++++ pmlsrc/exp10.c	(Arbeitskopie)
 @@ -24,66 +24,66 @@
  
  ");	/* end asm	*/
@@ -3218,9 +3617,10 @@ diff -aurN pml-2.03/pmlsrc/exp10.c pml-2.03-mint-20110207/pmlsrc/exp10.c
  # else	ERROR_CHECK
  # endif	ERROR_CHECK
  #endif /* __M68881__ || sfp004	*/
-diff -aurN pml-2.03/pmlsrc/floor.c pml-2.03-mint-20110207/pmlsrc/floor.c
---- pml-2.03/pmlsrc/floor.c	1994-03-19 15:40:12.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/floor.c	2011-02-07 22:54:57.359375000 +0100
+Index: pmlsrc/floor.c
+===================================================================
+--- pmlsrc/floor.c	(Revision 2)
++++ pmlsrc/floor.c	(Arbeitskopie)
 @@ -3,7 +3,7 @@
   * 	from pete housels posting
   */
@@ -3249,12 +3649,78 @@ diff -aurN pml-2.03/pmlsrc/floor.c pml-2.03-mint-20110207/pmlsrc/floor.c
  #ifdef	sfp004
 -#endif	sfp004
 +#endif /* sfp004 */
-diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
---- pml-2.03/pmlsrc/log.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/log.c	2011-02-07 22:54:57.375000000 +0100
-@@ -275,67 +275,67 @@
+Index: pmlsrc/log.c
+===================================================================
+--- pmlsrc/log.c	(Revision 2)
++++ pmlsrc/log.c	(Arbeitskopie)
+@@ -182,25 +182,25 @@
+  * of gcc compiler.  Ensure that first four assembler instructions in
+  * log and log10 are the same!
+  */
+-__asm__("
+-	.text
+-	.even
+-	.globl _log10
+-_log10:");
++__asm__(
++"	.text	\n"
++"	.even	\n"
++"	.globl _log10	\n"
++"_log10:");
+ #ifdef __MSHORT__
+-__asm__("
+-	link a6,#-32
+-	moveml #0x3e30,sp@-");
++__asm__(
++"	link a6,#-32	\n"
++"	moveml #0x3e30,sp@-");
+ #else
+-__asm__("
+-	link a6,#-36
+-	moveml #0x3f30,sp@-");
++__asm__(
++"	link a6,#-36	\n"
++"	moveml #0x3f30,sp@-");
+ #endif  /* __MSHORT__ */
+-__asm__("
+-	movel a6@(8),d4
+-	movel a6@(12),d5
+-	moveq #1,d6
+-	jra   lgentry");
++__asm__(
++"	movel a6@(8),d4	\n"
++"	movel a6@(12),d5	\n"
++"	moveq #1,d6	\n"
++"	jra   lgentry");
+ #endif  /* __GCC_HACK__ */
  
- ");	/* end asm	*/
+ double log (x)
+@@ -214,8 +214,7 @@
+     int index;
+ 
+     index = 0;
+-__asm__("
+-lgentry:");
++__asm__("lgentry:");
+ #endif
+ 
+     if (x <= 0.0) {
+@@ -267,156 +266,156 @@
+ 
+ #ifdef	sfp004
+ 
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -3264,42 +3730,6 @@ diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"log: %s error\\n\\0\"
--.even
--
--| pml compatible log
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -3337,19 +3767,56 @@ diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +);
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm("
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"log: %s error\\n\\0\"
 -.even
--	.globl _log
--_log:
--    ");	/* end asm	*/
 +    __asm(
 +".even\t\n"
 +"	.globl _log\t\n"
 +"_log:\t\n"
 +    );	/* end asm	*/
  
+-| pml compatible log
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
+-
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-# endif	ERROR_CHECK
+-
+-    __asm("
+-.even
+-	.globl _log
+-_log:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -3367,11 +3834,28 @@ diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -349,71 +349,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5414,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x5414,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -3489,6 +3973,7 @@ diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -3498,60 +3983,44 @@ diff -aurN pml-2.03/pmlsrc/log.c pml-2.03-mint-20110207/pmlsrc/log.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/log10.c pml-2.03-mint-20110207/pmlsrc/log10.c
---- pml-2.03/pmlsrc/log10.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/log10.c	2011-02-07 22:54:57.390625000 +0100
-@@ -88,67 +88,67 @@
  
- ");	/* end asm	*/
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/log10.c
+===================================================================
+--- pmlsrc/log10.c	(Revision 2)
++++ pmlsrc/log10.c	(Arbeitskopie)
+@@ -80,15 +80,15 @@
+ 
+ #ifdef	sfp004
+ 
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -95,141 +95,141 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"log10: %s error\\n\\0\"
--.even
--| pml compatible log
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -3588,19 +4057,55 @@ diff -aurN pml-2.03/pmlsrc/log10.c pml-2.03-mint-20110207/pmlsrc/log10.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm("
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"log10: %s error\\n\\0\"
 -.even
--	.globl _log10
--_log10:
--    ");	/* end asm	*/
+-| pml compatible log
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +    __asm(
 +".even\t\n"
 +"	.globl _log10\t\n"
 +"_log10:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-    __asm("
+-.even
+-	.globl _log10
+-_log10:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -3618,11 +4123,28 @@ diff -aurN pml-2.03/pmlsrc/log10.c pml-2.03-mint-20110207/pmlsrc/log10.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -162,71 +162,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5415,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x5415,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -3740,6 +4262,7 @@ diff -aurN pml-2.03/pmlsrc/log10.c pml-2.03-mint-20110207/pmlsrc/log10.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -3749,12 +4272,105 @@ diff -aurN pml-2.03/pmlsrc/log10.c pml-2.03-mint-20110207/pmlsrc/log10.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
---- pml-2.03/pmlsrc/math.h	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/math.h	2011-02-07 22:57:14.750000000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/Makefile
+===================================================================
+--- pmlsrc/Makefile	(nicht existent)
++++ pmlsrc/Makefile	(Arbeitskopie)
+@@ -0,0 +1,39 @@
++CROSSDIR = /dsrg/bammi/cross-minix
++CROSSLIB = $(CROSSDIR)/lib
++CROSSBIN = $(CROSSDIR)/bin
++CROSSINC = $(CROSSDIR)/include
++WITH_SHORT_LIBS = 0
++
++ALL = libpml32.a
++
++ifeq ($(WITH_SHORT_LIBS), 1)
++ALL += libpml.a
++endif
++
++all : $(ALL)
++
++libpml32.a :
++	make -f Makefile.32 clean
++	make -f Makefile.32 libpml32.a
++
++ifeq ($(WITH_SHORT_LIBS), 1)
++libpml.a :
++	make -f Makefile.16 clean
++	make -f Makefile.16 libpml.a
++endif
++
++install : $(ALL)
++	mkdir -p $(CROSSLIB)
++	cp libpml32.a $(CROSSLIB)/libm.a
++ifeq ($(WITH_SHORT_LIBS), 1)
++	mkdir -p $(CROSSLIB)/mshort
++	cp libpml.a $(CROSSLIB)/mshort/libm.a
++endif
++	mkdir -p $(CROSSINC)
++	cp math.h $(CROSSINC)
++
++clean:
++	make -f Makefile.32 clean
++ifeq ($(WITH_SHORT_LIBS), 1)
++	make -f Makefile.16 clean
++endif
+Index: pmlsrc/Makefile.16
+===================================================================
+--- pmlsrc/Makefile.16	(Revision 2)
++++ pmlsrc/Makefile.16	(Arbeitskopie)
+@@ -22,7 +22,7 @@
+ 
+ AR = /dsrg/bammi/cross-gcc/bin/car
+ CC = $(CROSSBIN)/mgcc
+-CFLAGS = -mshort -O2 -DIEEE -DNO_DBUG -D__GCC_HACK__ -I.
++CFLAGS = -mshort -O2 -fomit-frame-pointer $(CPU) -DIEEE -DNO_DBUG -I.
+ 
+ LIB = $(CROSSLIB)
+ 
+@@ -44,7 +44,7 @@
+ 
+ LEVEL4 =	cadd.o
+ 
+-OBJ =		$(LEVEL4) $(LEVEL3) $(LEVEL2) $(LEVEL1) $(LEVEL0)
++OBJ =		$(LEVEL4) $(LEVEL2) $(LEVEL1) $(LEVEL0)
+ 
+ #
+ #	The default thing to make.
+Index: pmlsrc/Makefile.32
+===================================================================
+--- pmlsrc/Makefile.32	(Revision 2)
++++ pmlsrc/Makefile.32	(Arbeitskopie)
+@@ -22,7 +22,7 @@
+ 
+ AR = /dsrg/bammi/cross-gcc/bin/car
+ CC = $(CROSSBIN)/mgcc
+-CFLAGS = -O2 -DIEEE -DNO_DBUG -D__GCC_HACK__ -I.
++CFLAGS = -O2 -fomit-frame-pointer $(CPU) -DIEEE -DNO_DBUG -I.
+ 
+ LIB = $(CROSSLIB)
+ 
+@@ -44,7 +44,7 @@
+ 
+ LEVEL4 =	cadd.o
+ 
+-OBJ =		$(LEVEL4) $(LEVEL3) $(LEVEL2) $(LEVEL1) $(LEVEL0)
++OBJ =		$(LEVEL4) $(LEVEL2) $(LEVEL1) $(LEVEL0)
+ 
+ #
+ #	The default thing to make.
+Index: pmlsrc/math.h
+===================================================================
+--- pmlsrc/math.h	(Revision 2)
++++ pmlsrc/math.h	(Arbeitskopie)
 @@ -1,5 +1,5 @@
  #ifndef _MATH_H
 -#define _MATH_H
@@ -3784,15 +4400,14 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 -#ifdef __cplusplus
 -extern "C" {
 -#endif
--
--#ifdef __TURBOC__
 +__BEGIN_DECLS
  
--#include <tcmath.h>
+-#ifdef __TURBOC__
 +/* Get machine-dependent HUGE_VAL value (returned on overflow).
 +   On all IEEE754 machines, this is +Infinity.  */
 +#include <bits/huge_val.h>
-+
+ 
+-#include <tcmath.h>
 +/* Get machine-dependent NAN value (returned for some domain errors).  */
 +#ifdef	 __USE_ISOC99
 +# include <bits/nan.h>
@@ -3812,7 +4427,7 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
  typedef enum  {
      DOMAIN      = 1,
      SING        = 2,
-@@ -74,43 +75,72 @@
+@@ -74,7 +75,13 @@
      PLOSS       = 6
  } exception_type;
  
@@ -3827,6 +4442,7 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
  	exception_type	type;	/* exception type */
  	const char	*name;	/* function in which it occured */
  	double		arg1;	/* an arg */
+@@ -81,36 +88,59 @@
  	double		arg2;	/* another arg */
  	double		retval; /* val to return */
  };
@@ -3863,7 +4479,7 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 +# define M_SQRT2	1.41421356237309504880	/* sqrt(2) */
 +# define M_SQRT1_2	0.70710678118654752440	/* 1/sqrt(2) */
 +#endif
-+
+ 
 +/* The above constants are not adequate for computation using `long double's.
 +   Therefore we provide as an extension constants with similar names as a
 +   GNU extension.  Provide enough digits for the 128-bit IEEE quad.  */
@@ -3883,7 +4499,7 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 +# define M_SQRT1_2l	0.7071067811865475244008443621048490L  /* 1/sqrt(2) */
 +#endif
 +
- 
++
  extern const double _infinitydf;	/* in normdf.cpp */
  
  
@@ -4014,10 +4630,6 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 -__EXTERN double floor	__PROTO((double));
 -__EXTERN double rint	__PROTO((double));
 -__EXTERN double fmod	__PROTO((double, double));
--
--__EXTERN double ldexp	__PROTO((double, int));
--__EXTERN double frexp	__PROTO((double, int *));
--__EXTERN double modf	__PROTO((double, double *));
 +extern double sin (double) __THROW;
 +extern double cos (double) __THROW;
 +extern double tan (double) __THROW;
@@ -4040,7 +4652,10 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 +extern double floor (double) __THROW;
 +extern double rint (double) __THROW;
 +extern double fmod (double, double) __THROW;
-+
+ 
+-__EXTERN double ldexp	__PROTO((double, int));
+-__EXTERN double frexp	__PROTO((double, int *));
+-__EXTERN double modf	__PROTO((double, double *));
 +extern double ldexp (double, int) __THROW;
 +extern double frexp (double, int *) __THROW;
 +extern double modf (double, double *) __THROW;
@@ -4060,8 +4675,8 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
  #else
 -__EXTERN double dabs	__PROTO((double));
 +extern double dabs (double) __THROW;
-+#endif
  #endif
++#endif
  
 -__EXTERN double copysign	__PROTO((double, double));
 -__EXTERN int matherr	__PROTO((struct exception *));
@@ -4070,7 +4685,13 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 -__EXTERN COMPLEX csqrt	__PROTO((COMPLEX));
 -#ifndef __GNUG__
 -__EXTERN COMPLEX clog	__PROTO((COMPLEX));
--#endif
++extern double copysign (double, double) __THROW;
++
++#ifdef __cplusplus
++extern int matherr (struct __exception *) throw();
++#else
++extern int matherr (struct exception *) __THROW;
+ #endif
 -__EXTERN COMPLEX cacos	__PROTO((COMPLEX));
 -__EXTERN COMPLEX cadd	__PROTO((COMPLEX,COMPLEX));
 -__EXTERN COMPLEX casin	__PROTO((COMPLEX));
@@ -4085,91 +4706,66 @@ diff -aurN pml-2.03/pmlsrc/math.h pml-2.03-mint-20110207/pmlsrc/math.h
 -__EXTERN COMPLEX csin	__PROTO((COMPLEX));
 -__EXTERN COMPLEX cdiv	__PROTO((COMPLEX, COMPLEX));
 -__EXTERN COMPLEX csubt	__PROTO((COMPLEX,COMPLEX));
--
+ 
 -__EXTERN int pmlcfs	__PROTO((int, int));
 -__EXTERN int pmlcnt	__PROTO((void));
 -__EXTERN int pmlerr	__PROTO((int));
 -__EXTERN int pmllim	__PROTO((int));
 -__EXTERN int pmlsfs	__PROTO((int, int));
 -__EXTERN double poly	__PROTO((int, double *, double));
--
--#endif /* __STRICT_ANSI__ */
--
--#endif /* __TURBOC__ */
-+extern double copysign (double, double) __THROW;
- 
- #ifdef __cplusplus
--}
-+extern int matherr (struct __exception *) throw();
-+#else
-+extern int matherr (struct exception *) __THROW;
- #endif
- 
--#endif /* _MATH_H */
 +extern int pmlcfs (int, int) __THROW;
 +extern int pmlcnt (void) __THROW;
 +extern int pmlerr (int) __THROW;
 +extern int pmllim (int) __THROW;
 +extern int pmlsfs (int, int) __THROW;
 +extern double poly (int, double *, double) __THROW;
-+
-+#endif /* __STRICT_ANSI__ */
-+
-+__END_DECLS
-+
-+#endif /* math.h  */
-diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
---- pml-2.03/pmlsrc/mod.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/mod.c	2011-02-07 22:54:57.406250000 +0100
-@@ -77,70 +77,70 @@
  
- ");	/* end asm	*/
+ #endif /* __STRICT_ANSI__ */
+ 
+-#endif /* __TURBOC__ */
++__END_DECLS
+ 
+-#ifdef __cplusplus
+-}
+-#endif
+-
+-#endif /* _MATH_H */
++#endif /* math.h  */
+Index: pmlsrc/mod.c
+===================================================================
+--- pmlsrc/mod.c	(Revision 2)
++++ pmlsrc/mod.c	(Arbeitskopie)
+@@ -67,17 +67,17 @@
+ #endif	/* __M68881, sfp004	*/
+ #ifdef	sfp004
+ 
+-__asm("
++__asm(
+ 
+-| base =	0xfffa50
+-|      the fpu addresses are taken relativ to 'base':
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"| base =	0xfffa50	\n"
++"|      the fpu addresses are taken relativ to 'base':	\n"
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -84,149 +84,150 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"fmod: %s error\\n\\0\"
--
--| pml compatible tangent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"\t\n"
@@ -4207,17 +4803,54 @@ diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm(".even
--	.globl _fmod
--_fmod:
--    ");	/* end asm	*/
 +    __asm(".even\t\n"
 +"	.globl _fmod\t\n"
 +"_fmod:\t\n"
 +    );	/* end asm	*/
  
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"fmod: %s error\\n\\0\"
+-
+-| pml compatible tangent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
+-
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-    __asm(".even
+-	.globl _fmod
+-_fmod:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -4241,11 +4874,36 @@ diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -158,70 +158,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5400,a0@(comm)	| specify function (fmove)
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x5421,a0@(comm)	| specify function (fmod)
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a7@(12),a0@		| load arg_hi
+-	movel	a7@(16),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x5400,a0@(comm)	| specify function (fmove)	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x5421,a0@(comm)	| specify function (fmod)	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a7@(12),a0@		| load arg_hi	\n"
++"	movel	a7@(16),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -4362,6 +5020,7 @@ diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
 -	addl	#12,a7		|
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -4371,9 +5030,15 @@ diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+ 
+ #ifdef m68881
 @@ -242,7 +243,7 @@
  	xcpt.arg1 = base;
  	xcpt.type = DOMAIN;
@@ -4389,9 +5054,10 @@ diff -aurN pml-2.03/pmlsrc/mod.c pml-2.03-mint-20110207/pmlsrc/mod.c
  }
 -#endif m68881
 +#endif /* m68881 */
-diff -aurN pml-2.03/pmlsrc/pml.h pml-2.03-mint-20110207/pmlsrc/pml.h
---- pml-2.03/pmlsrc/pml.h	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/pml.h	2011-02-07 22:54:57.421875000 +0100
+Index: pmlsrc/pml.h
+===================================================================
+--- pmlsrc/pml.h	(Revision 2)
++++ pmlsrc/pml.h	(Arbeitskopie)
 @@ -48,7 +48,7 @@
  
  #ifndef NO_DBUG
@@ -4401,27 +5067,100 @@ diff -aurN pml-2.03/pmlsrc/pml.h pml-2.03-mint-20110207/pmlsrc/pml.h
  
  #ifndef NO_DBUG
  #    include <dbug.h>
-diff -aurN pml-2.03/pmlsrc/rint.c pml-2.03-mint-20110207/pmlsrc/rint.c
---- pml-2.03/pmlsrc/rint.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/rint.c	2011-02-07 22:54:57.421875000 +0100
-@@ -64,7 +64,7 @@
+Index: pmlsrc/rint.c
+===================================================================
+--- pmlsrc/rint.c	(Revision 2)
++++ pmlsrc/rint.c	(Arbeitskopie)
+@@ -53,7 +53,7 @@
+   __asm volatile ("fmove%.l %0,fpcr"
+ 		  : /* no outputs */
+ 		  : "dmi" (round_nearest));
+-#endif 0
++#endif /* 0 */
+   __asm volatile ("fint%.x %1,%0"
+ 		  : "=f" (value)
+ 		  : "f" (x));
+@@ -64,40 +64,40 @@
  #endif 0
    return value;
  }
 -#endif __M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
- __asm("
- 
-@@ -100,4 +100,4 @@
-  	rts
- 
- ");
+-__asm("
+-
+-| pml compatible lib for the atari sfp004
+-|
+-| Michael Ritzert, Oktober 1990
+-| ritzert@dfg.dbp.de
+-|
+-| FUNCTION:	DOUBLE RINT( DOUBLE X )
+-|
+-| base =	0xfffa50
+-| the fpu addresses are taken relativ to 'base':
+-
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
+-
+-.text
+-	.globl _rint
+-.even
+-_rint:
+-	lea	0xfffa50,a0
+-|	movew	#0x5403,a0@(comm)	| fintrz to fp0
+-	movew	#0x5401,a0@(comm)	| fint   to fp0
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-| wait
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a0@,d0
+-	movel	a0@,d1
+- 	rts
+-
+-");
 -#endif	sfp004
++__asm(
++"	\n"
++"| pml compatible lib for the atari sfp004	\n"
++"|	\n"
++"| Michael Ritzert, Oktober 1990	\n"
++"| ritzert@dfg.dbp.de	\n"
++"|	\n"
++"| FUNCTION:	DOUBLE RINT( DOUBLE X )	\n"
++"|	\n"
++"| base =	0xfffa50	\n"
++"| the fpu addresses are taken relativ to 'base':	\n"
++"	\n"
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
++"	\n"
++".text	\n"
++"	.globl _rint	\n"
++".even	\n"
++"_rint:	\n"
++"	lea	0xfffa50,a0	\n"
++"|	movew	#0x5403,a0@(comm)	| fintrz to fp0	\n"
++"	movew	#0x5401,a0@(comm)	| fint   to fp0	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"| wait	\n"
++"	.long	0x0c688900, 0xfff067f8	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++" 	rts	\n"
++"	\n"
++);
 +#endif /* sfp004 */
-diff -aurN pml-2.03/pmlsrc/sign.c pml-2.03-mint-20110207/pmlsrc/sign.c
---- pml-2.03/pmlsrc/sign.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/sign.c	2011-02-07 22:54:57.437500000 +0100
+Index: pmlsrc/sign.c
+===================================================================
+--- pmlsrc/sign.c	(Revision 2)
++++ pmlsrc/sign.c	(Arbeitskopie)
 @@ -84,21 +84,21 @@
      return (rtnval);
  }
@@ -4461,56 +5200,37 @@ diff -aurN pml-2.03/pmlsrc/sign.c pml-2.03-mint-20110207/pmlsrc/sign.c
 -
 -#endif	OLD
 +#endif /* OLD */
-diff -aurN pml-2.03/pmlsrc/sin.c pml-2.03-mint-20110207/pmlsrc/sin.c
---- pml-2.03/pmlsrc/sin.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/sin.c	2011-02-07 22:54:57.437500000 +0100
-@@ -191,65 +191,65 @@
+Index: pmlsrc/sin.c
+===================================================================
+--- pmlsrc/sin.c	(Revision 2)
++++ pmlsrc/sin.c	(Arbeitskopie)
+@@ -183,15 +183,15 @@
+ #endif	/* __M68881__, sfp004	*/
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -198,111 +198,111 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"sin: %s error\\n\\0\"
--.even
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -4546,17 +5266,52 @@ diff -aurN pml-2.03/pmlsrc/sin.c pml-2.03-mint-20110207/pmlsrc/sin.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm(".even
--.globl _sin
--_sin:
--    ");	/* end asm	*/
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"sin: %s error\\n\\0\"
+-.even
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +    __asm(".even\t\n"
 +".globl _sin\t\n"
 +"_sin:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-    __asm(".even
+-.globl _sin
+-_sin:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -4574,11 +5329,28 @@ diff -aurN pml-2.03/pmlsrc/sin.c pml-2.03-mint-20110207/pmlsrc/sin.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -263,43 +263,43 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x540e,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x540e,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -4640,6 +5412,7 @@ diff -aurN pml-2.03/pmlsrc/sin.c pml-2.03-mint-20110207/pmlsrc/sin.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -4647,14 +5420,19 @@ diff -aurN pml-2.03/pmlsrc/sin.c pml-2.03-mint-20110207/pmlsrc/sin.c
 +//"	jbsr	_fprintf	|\t\n"
 +"	addl	#12,a7		|\t\n"
 +"	moveml	a7@+,d0-d1\t\n"
-+"	rts
++"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
---- pml-2.03/pmlsrc/sinh.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/sinh.c	2011-02-07 22:54:57.453125000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/sinh.c
+===================================================================
+--- pmlsrc/sinh.c	(Revision 2)
++++ pmlsrc/sinh.c	(Arbeitskopie)
 @@ -81,7 +81,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -4673,54 +5451,33 @@ diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
  	    errno = ERANGE;
  	    xcpt.retval = 0.0;
  	}
-@@ -111,66 +111,66 @@
+@@ -103,15 +103,15 @@
+ #endif
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -118,140 +118,140 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"sinh: %s error\\n\\0\"
--.even
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"\t\n"
@@ -4757,17 +5514,53 @@ diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm(".even
--.globl _sinh
--_sinh:
--    ");	/* end asm	*/
 +    __asm(".even\t\n"
 +".globl _sinh\t\n"
 +"_sinh:\t\n"
 +    );	/* end asm	*/
  
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"sinh: %s error\\n\\0\"
+-.even
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
+-
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-    __asm(".even
+-.globl _sinh
+-_sinh:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -4785,11 +5578,28 @@ diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -184,71 +184,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5402,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0\n"
++"	movew	#0x5402,a0@(comm)	| specify function\n"
++"	cmpiw	#0x8900,a0@(resp)	| check\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"	movew	#0x7400,a0@(comm)	| result to d0\n"
++"	.long	0x0c688900, 0xfff067f8	| wait\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -4907,6 +5717,7 @@ diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -4916,12 +5727,17 @@ diff -aurN pml-2.03/pmlsrc/sinh.c pml-2.03-mint-20110207/pmlsrc/sinh.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
---- pml-2.03/pmlsrc/sqrt.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/sqrt.c	2011-02-07 22:54:57.468750000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/sqrt.c
+===================================================================
+--- pmlsrc/sqrt.c	(Revision 2)
++++ pmlsrc/sqrt.c	(Arbeitskopie)
 @@ -171,7 +171,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -4931,54 +5747,33 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
  	    errno = EDOM;
  	    xcpt.retval = 0.0;
  	}
-@@ -221,67 +221,67 @@
+@@ -213,15 +213,15 @@
  
- ");	/* end asm	*/
+ #ifdef	sfp004
+ 
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6	\n"
++"resp =	-16	\n"
++"zahl =	  0	\n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -228,182 +228,182 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"sqrt: %s error\\n\\0\"
--.even
--
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -5015,19 +5810,55 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +    );	/* end asm	*/
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm(".even
--.globl _hypot
--.globl _sqrt
--_sqrt:
--    ");	/* end asm	*/
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"sqrt: %s error\\n\\0\"
+-.even
 +    __asm(".even\t\n"
 +".globl _hypot\t\n"
 +".globl _sqrt\t\n"
 +"_sqrt:\t\n"
 +    );	/* end asm	*/
  
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
+-
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-    ");	/* end asm	*/
+-# endif	ERROR_CHECK
+-
+-    __asm(".even
+-.globl _hypot
+-.globl _sqrt
+-_sqrt:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -5045,11 +5876,28 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -295,77 +295,77 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5404,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0	\n"
++"	movew	#0x5404,a0@(comm)	| specify function	\n"
++"	cmpiw	#0x8900,a0@(resp)	| check	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0	\n"
++"	.long	0x0c688900, 0xfff067f8	| wait	\n"
++"	movel	a0@,d0	\n"
++"	movel	a0@,d1	\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -5140,6 +5988,13 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
 -	addl	#12,a7		|
 -	moveml	a7@+,d0-d1
 -");
+-# endif	ERROR_CHECK
+-__asm("
+-	rts
+-
+-.even
+-_hypot:
+-    ");
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -5148,13 +6003,7 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
 +"	addl	#12,a7		|\t\n"
 +"	moveml	a7@+,d0-d1\t\n"
 +);
- # endif	ERROR_CHECK
--__asm("
--	rts
--
--.even
--_hypot:
--    ");
++# endif	/* ERROR_CHECK */
 +__asm(
 +"	rts\t\n"
 +"\t\n"
@@ -5186,13 +6035,67 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
 +);
 +#endif /* __M68881__ */
  #ifdef	sfp004
- __asm("
- 	lea	0xfffa50,a0
-@@ -397,13 +397,13 @@
- 	movel	a0@(zahl),d0
- 	movel	a0@(zahl),d1
- ");
+-__asm("
+-	lea	0xfffa50,a0
+-
+-	movew	#0x5400,a0@(comm)	| load fp0
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-
+-	movew	#0x5480,a0@(comm)	| load fp1
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a7@(12),a0@		| load arg_hi
+-	movel	a7@(16),a0@		| load arg_low
+-
+-	movew	#0x0023,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa	| test
+-
+-	movew	#0x04a3,a0@(comm)
+-	.word	0x4a68,0xfff0,0x6bfa	| test
+-
+-	movew	#0x0422,a0@(comm)	| fp0 = fp0 + fp1	
+-	.word	0x4a68,0xfff0,0x6bfa	| test
+-
+-	movew	#0x0004,a0@(comm)	| sqrt(fp0)
+-	.word	0x4a68,0xfff0,0x6bfa	| test
+-
+-	movew	#0x7400,a0@(comm)	| result to d0/d1
+-	.long	0x0c688900, 0xfff067f8
+-	movel	a0@(zahl),d0
+-	movel	a0@(zahl),d1
+-");
 -#endif	sfp004
++__asm(
++"	lea	0xfffa50,a0	\n"
++"	\n"
++"	movew	#0x5400,a0@(comm)	| load fp0	\n"
++"	.long	0x0c688900, 0xfff067f8	\n"
++"	movel	a7@(4),a0@		| load arg_hi	\n"
++"	movel	a7@(8),a0@		| load arg_low	\n"
++"	\n"
++"	movew	#0x5480,a0@(comm)	| load fp1	\n"
++"	.long	0x0c688900, 0xfff067f8	\n"
++"	movel	a7@(12),a0@		| load arg_hi	\n"
++"	movel	a7@(16),a0@		| load arg_low	\n"
++"	\n"
++"	movew	#0x0023,a0@(comm)	\n"
++"	.word	0x4a68,0xfff0,0x6bfa	| test	\n"
++"	\n"
++"	movew	#0x04a3,a0@(comm)	\n"
++"	.word	0x4a68,0xfff0,0x6bfa	| test	\n"
++"	\n"
++"	movew	#0x0422,a0@(comm)	| fp0 = fp0 + fp1		\n"
++"	.word	0x4a68,0xfff0,0x6bfa	| test	\n"
++"	\n"
++"	movew	#0x0004,a0@(comm)	| sqrt(fp0)	\n"
++"	.word	0x4a68,0xfff0,0x6bfa	| test	\n"
++"	\n"
++"	movew	#0x7400,a0@(comm)	| result to d0/d1	\n"
++"	.long	0x0c688900, 0xfff067f8	\n"
++"	movel	a0@(zahl),d0	\n"
++"	movel	a0@(zahl),d1	\n"
++);
 +#endif /* sfp004 */
  #if ( defined (__M68881__) || defined (sfp004) ) && defined (ERROR_CHECK)
  
@@ -5205,9 +6108,10 @@ diff -aurN pml-2.03/pmlsrc/sqrt.c pml-2.03-mint-20110207/pmlsrc/sqrt.c
  
 -#endif	ERROR_CHECK
 +#endif /* ERROR_CHECK */
-diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
---- pml-2.03/pmlsrc/tan.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/tan.c	2011-02-07 22:54:57.468750000 +0100
+Index: pmlsrc/tan.c
+===================================================================
+--- pmlsrc/tan.c	(Revision 2)
++++ pmlsrc/tan.c	(Arbeitskopie)
 @@ -77,7 +77,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -5217,54 +6121,33 @@ diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
  	    errno = ERANGE;
  	    if (sinx >= 0.0) {
  		xcpt.retval = HUGE_VAL;
-@@ -102,66 +102,66 @@
+@@ -94,15 +94,15 @@
+ #endif	/* __M68881__ || sfp004	*/
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
      __asm(".text; .even");
+@@ -109,139 +109,139 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"tan: %s error\\n\\0\"
--.even
--| pml compatible tangent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -5301,17 +6184,53 @@ diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
 +"	.long	0xfff00000\t\n"
 +"	.long	0x00000000\t\n"
 +);
- # endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
  
--    __asm(".even
--.globl _tan
--_tan:
--    ");	/* end asm	*/
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"tan: %s error\\n\\0\"
+-.even
+-| pml compatible tangent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +    __asm(".even\t\n"
 +".globl _tan\t\n"
 +"_tan:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-# endif	ERROR_CHECK
+-
+-    __asm(".even
+-.globl _tan
+-_tan:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -5329,11 +6248,28 @@ diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -175,71 +175,71 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x540f,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0\n"
++"	movew	#0x540f,a0@(comm)	| specify function\n"
++"	cmpiw	#0x8900,a0@(resp)	| check\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"	movew	#0x7400,a0@(comm)	| result to d0\n"
++"	.long	0x0c688900, 0xfff067f8	| wait\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -5451,6 +6387,7 @@ diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -5460,12 +6397,16 @@ diff -aurN pml-2.03/pmlsrc/tan.c pml-2.03-mint-20110207/pmlsrc/tan.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  __asm("rts");
- # endif	ERROR_CHECK
-diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
---- pml-2.03/pmlsrc/tanh.c	1994-03-19 15:40:14.000000000 +0100
-+++ pml-2.03-mint-20110207/pmlsrc/tanh.c	2011-02-07 22:54:57.484375000 +0100
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ 
+ #endif /* __M68881__ || sfp004	*/
+Index: pmlsrc/tanh.c
+===================================================================
+--- pmlsrc/tanh.c	(Revision 2)
++++ pmlsrc/tanh.c	(Arbeitskopie)
 @@ -87,7 +87,7 @@
  	xcpt.name = funcname;
  	xcpt.arg1 = x;
@@ -5475,60 +6416,33 @@ diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
  	    errno = ERANGE;
  	    if (positive) {
  		xcpt.retval = 1.0;
-@@ -111,66 +111,66 @@
+@@ -103,15 +103,15 @@
+ #endif	/* __M68881__, sfp004	*/
+ #ifdef	sfp004
  
- ");	/* end asm	*/
+-__asm("
++__asm(
+ 
+-comm =	 -6
+-resp =	-16
+-zahl =	  0
++"comm =	 -6 \n"
++"resp =	-16 \n"
++"zahl =	  0 \n"
+ 
+-");	/* end asm	*/
++);	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
  #if defined (__M68881__) || defined (sfp004)
  
     __asm(".text; .even");
+@@ -118,112 +118,112 @@
  
  # ifdef	ERROR_CHECK
  
 -    __asm("
--
--_Overflow:
--	.ascii \"OVERFLOW\\0\"
--_Domain:
--	.ascii \"DOMAIN\\0\"
--_Error_String:
--	.ascii \"tanh: %s error\\n\\0\"
--.even
--| pml compatible tanhgent
--| m.ritzert 7.12.1991
--| ritzert@dfg.dbp.de
--|
--|    /* NAN  = {7fffffff,ffffffff}		*/
--|    /* +Inf = {7ff00000,00000000}		*/
--|    /* -Inf = {fff00000,00000000}		*/
--|    /* MAX_D= {7fee42d1,30773b76}		*/
--|    /* MIN_D= {ffee42d1,30773b76}		*/
--
--.even
--double_max:
--	.long	0x7fee42d1
--	.long	0x30273b76
--double_min:
--	.long	0xffee42d1
--	.long	0x30273b76
--NaN:
--	.long	0x7fffffff
--	.long	0xffffffff
--p_Inf:
--	.long	0x7ff00000
--	.long	0x00000000
--m_Inf:
--	.long	0xfff00000
--	.long	0x00000000
--");
--#endif	ERROR_CHECK
--
--    __asm(".even
--.globl _tanh
--_tanh:
--    ");	/* end asm	*/
 +    __asm(
 +"\t\n"
 +"_Overflow:\t\n"
@@ -5566,12 +6480,52 @@ diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
 +"	.long	0x00000000\t\n"
 +);
 +#endif /* ERROR_CHECK */
-+
+ 
+-_Overflow:
+-	.ascii \"OVERFLOW\\0\"
+-_Domain:
+-	.ascii \"DOMAIN\\0\"
+-_Error_String:
+-	.ascii \"tanh: %s error\\n\\0\"
+-.even
+-| pml compatible tanhgent
+-| m.ritzert 7.12.1991
+-| ritzert@dfg.dbp.de
+-|
+-|    /* NAN  = {7fffffff,ffffffff}		*/
+-|    /* +Inf = {7ff00000,00000000}		*/
+-|    /* -Inf = {fff00000,00000000}		*/
+-|    /* MAX_D= {7fee42d1,30773b76}		*/
+-|    /* MIN_D= {ffee42d1,30773b76}		*/
 +    __asm(".even\t\n"
 +".globl _tanh\t\n"
 +"_tanh:\t\n"
 +    );	/* end asm	*/
  
+-.even
+-double_max:
+-	.long	0x7fee42d1
+-	.long	0x30273b76
+-double_min:
+-	.long	0xffee42d1
+-	.long	0x30273b76
+-NaN:
+-	.long	0x7fffffff
+-	.long	0xffffffff
+-p_Inf:
+-	.long	0x7ff00000
+-	.long	0x00000000
+-m_Inf:
+-	.long	0xfff00000
+-	.long	0x00000000
+-");
+-#endif	ERROR_CHECK
+-
+-    __asm(".even
+-.globl _tanh
+-_tanh:
+-    ");	/* end asm	*/
+-
  #endif	/* __M68881__ || sfp004	*/
  #ifdef	__M68881__
  
@@ -5589,11 +6543,28 @@ diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
 -#endif	__M68881__
 +#endif /* __M68881__ */
  #ifdef	sfp004
-     __asm("
- 	lea	0xfffa50,a0
-@@ -184,43 +184,43 @@
- 	movel	a0@,d1
-     ");	/* end asm	*/
+-    __asm("
+-	lea	0xfffa50,a0
+-	movew	#0x5409,a0@(comm)	| specify function
+-	cmpiw	#0x8900,a0@(resp)	| check
+-	movel	a7@(4),a0@		| load arg_hi
+-	movel	a7@(8),a0@		| load arg_low
+-	movew	#0x7400,a0@(comm)	| result to d0
+-	.long	0x0c688900, 0xfff067f8	| wait
+-	movel	a0@,d0
+-	movel	a0@,d1
+-    ");	/* end asm	*/
++    __asm(
++"	lea	0xfffa50,a0\n"
++"	movew	#0x5409,a0@(comm)	| specify function\n"
++"	cmpiw	#0x8900,a0@(resp)	| check\n"
++"	movel	a7@(4),a0@		| load arg_hi\n"
++"	movel	a7@(8),a0@		| load arg_low\n"
++"	movew	#0x7400,a0@(comm)	| result to d0\n"
++"	.long	0x0c688900, 0xfff067f8	| wait\n"
++"	movel	a0@,d0\n"
++"	movel	a0@,d1\n"
++    );	/* end asm	*/
  
 -#endif	sfp004
 +#endif /* sfp004 */
@@ -5655,6 +6626,7 @@ diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
 -	moveml	a7@+,d0-d1
 -	rts
 -    ");
+-# else	ERROR_CHECK
 +__asm(
 +"error_exit:\t\n"
 +"	pea	_Error_String	|\t\n"
@@ -5664,12 +6636,17 @@ diff -aurN pml-2.03/pmlsrc/tanh.c pml-2.03-mint-20110207/pmlsrc/tanh.c
 +"	moveml	a7@+,d0-d1\t\n"
 +"	rts\t\n"
 +    );
- # else	ERROR_CHECK
++# else	/* ERROR_CHECK */
  
  __asm("rts");
-diff -aurN pml-2.03/pmltests/Makefile pml-2.03-mint-20110207/pmltests/Makefile
---- pml-2.03/pmltests/Makefile	1970-01-01 01:00:00.000000000 +0100
-+++ pml-2.03-mint-20110207/pmltests/Makefile	2011-02-07 22:54:57.500000000 +0100
+ 
+-# endif	ERROR_CHECK
++# endif	/* ERROR_CHECK */
+ #endif /* __M68881__ || sfp004	*/
+Index: pmltests/Makefile
+===================================================================
+--- pmltests/Makefile	(nicht existent)
++++ pmltests/Makefile	(Arbeitskopie)
 @@ -0,0 +1,28 @@
 +CC = gcc
 +CFLAGS =	-DNO_DBUG -O -I../pmlsrc

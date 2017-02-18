@@ -30,4 +30,4 @@ BUILD_DKMINT_SRCDIR=`pwd`/sources
 #  0: Ask to delete build folders & patched sources 
 #  1: Use defaults, don't pause for answers 
 #---------------------------------------------------------------------------------
-BUILD_DKMINT_AUTOMATED=0
+BUILD_DKMINT_AUTOMATED=1
