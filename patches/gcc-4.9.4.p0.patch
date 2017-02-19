@@ -626,7 +626,7 @@ Index: gcc/config/m68k/mint.h
 ===================================================================
 --- gcc/config/m68k/mint.h	(nicht existent)
 +++ gcc/config/m68k/mint.h	(Arbeitskopie)
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,196 @@
 +/* Definitions of target machine for GNU compiler.
 +   Atari ST TOS/MiNT.
 +   Copyright (C) 1994, 1995, 2007, 2008, 2009, 2010, 2011
@@ -728,6 +728,10 @@ Index: gcc/config/m68k/mint.h
 +#define ASM_WEAKEN_LABEL(FILE,NAME) \
 +  do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
 +       fputc ('\n', FILE); } while (0)
++
++#undef ASM_PREFERRED_EH_DATA_FORMAT
++#define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL)	DW_EH_PE_pcrel
++
 +
 +/* Don't default to pcc-struct-return, because gcc is the only compiler, and
 +   we want to retain compatibility with older gcc versions.  */

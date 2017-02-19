@@ -40,15 +40,16 @@ SECTIONS
     .slb_export_end = .;
 
     /* .text */
-	*(.text)
+    *(.text)
     *(.text.unlikely .text.*_unlikely)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)
     *(.text.hot .text.hot.*)
-    *(.text .stub .text.* .gnu.linkonce.t.*)
+    *(.stub .text.* .gnu.linkonce.t.*)
     *(.rodata .rodata.*)
 
     /* .ctors */
+    . = ALIGN(4);
     ___CTOR_LIST__ = .;
     LONG((___CTOR_END__ - ___CTOR_LIST__) / 4 - 2);
     KEEP (*(.ctors))
@@ -62,6 +63,9 @@ SECTIONS
     KEEP (*(SORT(.dtors.*)))
     LONG(0);
     ___DTOR_END__ = .;
+    ___EH_FRAME_BEGIN__ = . ;
+    *(.eh_frame .eh_frame.*)
+    ___EH_FRAME_END__ = . ;
   }
   .data . :
   {
@@ -69,9 +73,6 @@ SECTIONS
     __etext = .;
     .data_start = .;
     *(.data) *(.data.*) *(.gnu.linkonce.d.*) *(.gcc_except_table) *(.gcc_except_table.*)
-    ___EH_FRAME_BEGIN__ = . ;
-    *(.eh_fram*)
-    ___EH_FRAME_END__ = . ;
   }
   .bss . :
   {
@@ -79,8 +80,8 @@ SECTIONS
     __edata = .;
     .bss_start = .;
     *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
-    .prg_end = .;
   }
   _end = .;
   __end = .;
+  .prg_end = .;
 }

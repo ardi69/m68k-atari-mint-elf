@@ -453,7 +453,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		if(swap32(map->shdrs[i].s_type) == SHT_RELA && swap32(map->shdrs[swap32(map->shdrs[i].s_info)].s_flags) & SHF_ALLOC)
 			rela_count += swap32(map->shdrs[i].s_size)/sizeof(Elf32_Rela);
 	}
-	uint32_t *rela_start=0, *rela_end=0;
+	uint32_t *rela_start=0, *rela_end=0, error=0;
 	if(rela_count) {
 		rela_end = rela_start = (uint32_t*)malloc(rela_count * sizeof(uint32_t));
 		if(rela_end == 0) die("failed to allocate memory\n");
@@ -477,6 +477,11 @@ void read_elf_segments(TOS_map *map, const char *elf)
 					if (r_type == R_68K_32) {
 						uint32_t use_rela = 1;
 						uint32_t r_sym = ELF32_R_SYM(swap32(tmp_relas[j].r_info));
+						if(r_offset & 1) {
+							error = 1;
+							const char *sym_name = (syms && sym_names) ? &sym_names[swap32(syms[r_sym].st_name)] : "";
+							fprintf(stderr, "Error: rela an odd position detected (not supported by atari/mint) offset = %#x symbol = %s in %s\n", r_offset, sym_name, s_name);
+						}
 						if(syms && sym_names && tmp_relas[j].r_addend == 0) {
 							Elf32_Sym *sym = &syms[r_sym];
 							const char *sym_name = &sym_names[swap32(sym->st_name)];
@@ -499,6 +504,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				free(tmp_relas);
 			}
 		}
+		if(error) exit(1);
 		rela_count = rela_end-rela_start;
 		qsort(rela_start, rela_count, sizeof(uint32_t), rela_cmp);
 		uint32_t bytes = 4; /* First entry is a long.  */
@@ -578,13 +584,13 @@ void write_tos(TOS_map *map, const char *tos)
 	if(verbosity >= 2)
 		fprintf(stderr, "Writing TOS header ...\n");
 	if(map->is_slb && (prg_flags & _MINT_F_BESTFIT)==0) {
-		fprintf(stderr, "warning: target is shared library force --best-fit ...\n");
+		fprintf(stderr, "Warning: target is shared library force --best-fit ...\n");
 		prg_flags |= _MINT_F_BESTFIT;
 	}
 	map->header.ph_prgflags = swap32(prg_flags);
 	written = fwrite(&map->header, sizeof(TOS_hdr), 1, tosf);
 	if(written != 1)
-		ferrordie(tosf, "writing TOS header");
+		ferrordie(tosf, "Writing TOS header");
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Writing TEXT & DATA segment ...\n");
@@ -592,6 +598,7 @@ void write_tos(TOS_map *map, const char *tos)
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Writing tpa relocation ...\n");
+	fprintf(stderr, "Writing tpa relocation at %lx ...\n", ftell(tosf));
 	uint32_t dummy=0;
 	uint8_t *relas = (uint8_t*)&dummy;
 	uint32_t rela_size = 4;

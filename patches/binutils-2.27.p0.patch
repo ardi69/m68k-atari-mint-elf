@@ -395,7 +395,7 @@ Index: ld/scripttempl/m68kmint.sc
 ===================================================================
 --- ld/scripttempl/m68kmint.sc	(nicht existent)
 +++ ld/scripttempl/m68kmint.sc	(Arbeitskopie)
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,85 @@
 +cat <<EOF
 +${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 +${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
@@ -440,6 +440,7 @@ Index: ld/scripttempl/m68kmint.sc
 +    *(.rodata .rodata.*)
 +
 +    /* .ctors */
++    . = ALIGN(4);
 +    ___CTOR_LIST__ = .;
 +    LONG((___CTOR_END__ - ___CTOR_LIST__) / 4 - 2);
 +    KEEP (*(.ctors))
@@ -454,24 +455,24 @@ Index: ld/scripttempl/m68kmint.sc
 +    KEEP (*(SORT(.dtors.*)))
 +    LONG(0);
 +    ___DTOR_END__ = .;
++    ___EH_FRAME_BEGIN__ = . ;
++    *(.eh_frame .eh_frame.*)
++    ___EH_FRAME_END__ = . ;
 +
 +  }
-+  ${RELOCATING+_etext = .;}
-+  ${RELOCATING+__etext = .;}
 +
 +  .data . :
 +  {
++    ${RELOCATING+_etext = .;}
++    ${RELOCATING+__etext = .;}
 +    ${RELOCATING+.data_start = .;}
-+    *(.data) *(.data.*) *(.gnu.linkonce.d.*)
-+    ${RELOCATING+___EH_FRAME_BEGIN__ = . ;}
-+    ${RELOCATING+*(.eh_fram*)}
-+    ${RELOCATING+___EH_FRAME_END__ = . ;}
++    *(.data) *(.data.*) *(.gnu.linkonce.d.*) *(.gcc_except_table) *(.gcc_except_table.*)
 +  }
-+  ${RELOCATING+_edata = .;}
-+  ${RELOCATING+__edata = .;}
 +
 +  .bss . :
 +  {
++    ${RELOCATING+_edata = .;}
++    ${RELOCATING+__edata = .;}
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
 +  }

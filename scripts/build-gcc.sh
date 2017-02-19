@@ -271,10 +271,10 @@ if [ ! -f configured-gcc ]; then
 	touch configured-gcc
 fi
 
-if [ ! -f built-gcc-stage1 ]; then
+if [ ! -f build-gcc-stage1 ]; then
 	rm -f installed-gcc-stage1
 	$MAKE all-gcc || { echo "Error building gcc stage1"; exit 1; }
-	touch built-gcc-stage1
+	touch build-gcc-stage1
 fi
 
 if [ ! -f installed-gcc-stage1 ]; then
@@ -393,9 +393,10 @@ fi
 
 cd $builddir/gcc
 
-if [ ! -f built-gcc-stage2 ]; then
+if [ ! -f build-gcc-stage2 ]; then
+	rm -v installed-gcc-stage2 # force install
 	$MAKE all || { echo "Error building gcc stage2"; exit 1; }
-	touch built-gcc-stage2
+	touch build-gcc-stage2
 fi
 
 if [ ! -f installed-gcc-stage2 ]
