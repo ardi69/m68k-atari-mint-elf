@@ -228,7 +228,7 @@ function extract_package() {
 	local patchfile=${1}_PATCH; patchfile=${!patchfile}
 	local patch
 	[ -z $arc ] && return
-
+	([ -d $src/.git ] || [ -d $src/.svn ]) && echo "found .div or .svn in $src -> extract and patch skipped" && return
 	if [ ! -f $src/extracted ]; then
 		echo "Extracting $arc"
 		rm -fr $src

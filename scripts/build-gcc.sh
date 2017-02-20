@@ -310,6 +310,12 @@ if [ ! -f installed-mintlib ]; then
 	touch installed-mintlib
 fi
 
+if [ ! -f installed-crt0-mcpu-5475 ]; then
+	echo "install crt0.o for mcpu=5475"
+	$target-gcc -c startup/crt0.S -mcpu=5475 -o $prefix/$target/lib/m5475/crt0.o && $target-gcc -mcpu=5475 -DGCRT0 -c startup/crt0.S -o $prefix/$target/lib/m5475/gcrt0.o || { echo "Error installing crt0.o for mcpu=5475"; exit 1; }
+	touch installed-crt0-mcpu-5475
+fi
+
 #---------------------------------------------------------------------------------
 # build and install libcmini
 #---------------------------------------------------------------------------------
@@ -419,9 +425,8 @@ if [ ! -f installed-bin2s ]; then
 fi
 
 if [ ! -f installed-crt0_slb ]; then
-	cmd="$target-gcc -c crt0.slb.s -o $prefix/$target/lib/crt0.slb.o"
-	echo $cmd
-	$cmd || { echo "Error installing crt0.slb.o"; exit 1; }
+	echo "install crt0.slb.o"
+	$target-gcc -c crt0.slb.s -o $prefix/$target/lib/crt0.slb.o && $target-gcc -mcpu=5475 -c crt0.slb.s -o $prefix/$target/lib/m5475/crt0.slb.o || { echo "Error installing crt0.slb.o"; exit 1; }
 	touch installed-crt0_slb
 fi
 

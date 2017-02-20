@@ -48,19 +48,6 @@ Index: bfd/configure
  
  $as_echo "#define USE_BINARY_FOPEN 1" >>confdefs.h
   ;;
-Index: bfd/elf32-m68k.c
-===================================================================
---- bfd/elf32-m68k.c	(Revision 5)
-+++ bfd/elf32-m68k.c	(Arbeitskopie)
-@@ -1052,7 +1052,7 @@
- 				 bfd_boolean linker ATTRIBUTE_UNUSED)
- {
-   int mach = bfd_get_mach (abfd);
--  unsigned long e_flags = elf_elfheader (abfd)->e_flags;
-+  unsigned long e_flags = elf_elfheader (abfd)->e_flags = EF_M68K_M68000; /* for m68k-atari-mint allways M68000 */
- 
-   if (!e_flags)
-     {
 Index: binutils/configure
 ===================================================================
 --- binutils/configure	(Revision 5)
