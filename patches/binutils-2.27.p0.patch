@@ -382,7 +382,7 @@ Index: ld/scripttempl/m68kmint.sc
 ===================================================================
 --- ld/scripttempl/m68kmint.sc	(nicht existent)
 +++ ld/scripttempl/m68kmint.sc	(Arbeitskopie)
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,91 @@
 +cat <<EOF
 +${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 +${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
@@ -396,10 +396,10 @@ Index: ld/scripttempl/m68kmint.sc
 +    LONG(.prg_end - .bss_start );
 +    LONG(0);
 +    LONG(0x4d694e54);
-+    LONG(0);
++    LONG(.startup_size); /* needed and setted by tostool */
 +    SHORT(0);
 +  }"}
-+  .text :
++  .text : SUBALIGN(2)
 +  {
 +    ${RELOCATING+.text_start = .;}
 +
@@ -416,14 +416,14 @@ Index: ld/scripttempl/m68kmint.sc
 +    LONG(1);                           /* g_symbol_format */
 +    . = . + 0xAC;
 +    .entry = .;
-+    KEEP(*(.text.entry.mint)) KEEP(*crt0*.o(.text)) KEEP(*startup.o(.text))
++    KEEP(*(.text.entry.mint)) KEEP(*crt0*.o(.text))
 +    .startup_size = . - .entry;
-+
++    *(.text)
 +    *(.text.unlikely .text.*_unlikely)
 +    *(.text.exit .text.exit.*)
 +    *(.text.startup .text.startup.*)
 +    *(.text.hot .text.hot.*)
-+    *(.text .stub .text.* .gnu.linkonce.t.*)
++    *(.stub .text.* .gnu.linkonce.t.*)
 +    *(.rodata .rodata.*)
 +
 +    /* .ctors */
@@ -443,28 +443,34 @@ Index: ld/scripttempl/m68kmint.sc
 +    LONG(0);
 +    ___DTOR_END__ = .;
 +    ___EH_FRAME_BEGIN__ = . ;
-+    *(.eh_frame .eh_frame.*)
++    KEEP(*(.eh_frame))
 +    ___EH_FRAME_END__ = . ;
-+
-+  }
-+
-+  .data . :
-+  {
++    LONG(0);
 +    ${RELOCATING+_etext = .;}
 +    ${RELOCATING+__etext = .;}
++  }
++  .data . : SUBALIGN(2)
++  {
 +    ${RELOCATING+.data_start = .;}
 +    *(.data) *(.data.*) *(.gnu.linkonce.d.*) *(.gcc_except_table) *(.gcc_except_table.*)
-+  }
-+
-+  .bss . :
-+  {
++    . = ALIGN(2);
 +    ${RELOCATING+_edata = .;}
 +    ${RELOCATING+__edata = .;}
++  }
++  .bss . : SUBALIGN(2)
++  {
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
++    . = ALIGN(2);
++    ${RELOCATING+_end = .;}
++    ${RELOCATING+__end = .;}
++    ${RELOCATING+.prg_end = .;}
 +  }
-+  ${RELOCATING+_end = .;}
-+  ${RELOCATING+__end = .;}
-+  ${RELOCATING+.prg_end = .;}
++
++EOF
++
++. $srcdir/scripttempl/DWARF.sc
++
++cat <<EOF
 +}
 +EOF

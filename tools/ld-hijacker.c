@@ -117,8 +117,9 @@ int main(int argc, char *argv[]) {
 
 	print_args("ld-hijacker", argc, argv);
 
-	if(!(ld_argv = (char**)malloc(sizeof(char*)*(argc + 5)))) fatal("out of memory");
-	if(!(tostool_argv = (char**)malloc(sizeof(char*)*(argc + 5)))) fatal("out of memory");
+	// allocate argv for ld & tostool - add space of extra args
+	if(!(ld_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory");
+	if(!(tostool_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory");
 
 	ld_argv[0] = (char*)malloc(strlen(argv[0]) + sizeof(".elf"));
 
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
 		strcpy(tostool_argv[0], "tostool");
 		strcat(tostool_argv[0], exe);
 	}
-
+	tostool_argv[tostool_argc++] = "--ld-hijacker"; // indicate tostool is invoked by ld-hijacker
 
 	// filter out tostool args
 	for (arg_idx = 1; arg_idx < argc; ++arg_idx) {
@@ -158,7 +159,7 @@ int main(int argc, char *argv[]) {
 			tostool_argv[tostool_argc++] = argv[arg_idx];
 			keep_elf = 1;
 
-		} else if (!strcmp(argv[arg_idx], "-v")) {
+		} else if (!strcmp(argv[arg_idx], "-v") || !strcmp(argv[arg_idx], "--gc-sections")) {
 			ld_argv[ld_argc++] = tostool_argv[tostool_argc++] = argv[arg_idx];
 
 		} else if (!strcmp(argv[arg_idx], "--help") || !strcmp(argv[arg_idx], "--target-help")) {
@@ -235,7 +236,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		} else {
 			if (!keep_elf) remove(tostool_input);
-			if(help) fprintf(stderr, "  --keep-elf                  don't remove the *.elf file\n");
+			if(help) fprintf(stdout, "  --keep-elf                  don't remove the *.elf file\n");
 		}
 	}
 	return 0;

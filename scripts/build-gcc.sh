@@ -59,7 +59,7 @@ if [ ! -f installed-binutils ]; then
 	# dev-mode on
 	# when reinstall then remove all ld's, strip's and force istall ld-hijacker and strip
 	for f in $prefix/bin/$target-ld* $prefix/bin/$target-strip* $prefix/$target/bin/ld* $prefix/$target/bin/strip*; do rm -f $f; done
-	rm -f $rootdir/tools/installed-ld-hijacker $rootdir/tools/installed-strip
+	rm -f $rootdir/tools/installed-ld-hijacker $rootdir/tools/installed-strip-hijacker
 	# dev-mode off
 
 	$MAKE install || { echo "Error installing binutils"; exit 1; }
@@ -148,7 +148,7 @@ fi
 
 cd $rootdir/tools
 
-if [ ! -f build-strip-hijacker ]; then
+if [ ! -f build-strip-hijacker ] || [ ! -f strip-hijacker$exe_ext ]; then
 	rm -f installed-strip-hijacker # force install
 	echo "build strip-hijacker"
 	echo "int main(){return 0;}" | gcc -xc -O2 -Wall -o strip-hijacker$exe_ext - && strip strip-hijacker$exe_ext || { echo "Error building strip-hijacker"; exit 1; }
@@ -285,6 +285,7 @@ fi
 
 # now build libgcc because needed by mintlib for building zic etc.
 if [ ! -f build-libgcc ]; then
+	rm -f installed-libgcc
 	$MAKE all-target-libgcc || { echo "Error building libgcc"; exit 1; }
 	touch build-libgcc
 fi

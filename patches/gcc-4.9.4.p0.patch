@@ -87,6 +87,19 @@ Index: configure.ac
    m68*-*-* | fido-*-*)
      libgloss_dir=m68k
      ;;
+Index: gcc/common.opt
+===================================================================
+--- gcc/common.opt	(Revision 23)
++++ gcc/common.opt	(Arbeitskopie)
+@@ -2426,7 +2426,7 @@
+ Assume signed arithmetic overflow wraps around
+ 
+ fzero-initialized-in-bss
+-Common Report Var(flag_zero_initialized_in_bss) Init(1)
++Common Report Var(flag_zero_initialized_in_bss) Init(0)
+ Put zero initialized data in the bss section
+ 
+ g
 Index: gcc/config.gcc
 ===================================================================
 --- gcc/config.gcc	(Revision 23)
@@ -626,7 +639,7 @@ Index: gcc/config/m68k/mint.h
 ===================================================================
 --- gcc/config/m68k/mint.h	(nicht existent)
 +++ gcc/config/m68k/mint.h	(Arbeitskopie)
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,211 @@
 +/* Definitions of target machine for GNU compiler.
 +   Atari ST TOS/MiNT.
 +   Copyright (C) 1994, 1995, 2007, 2008, 2009, 2010, 2011
@@ -755,6 +768,21 @@ Index: gcc/config/m68k/mint.h
 +   MiNT: DWARF 2 frame unwind is not supported by a.out-mint.
 +*/
 +#define DWARF2_UNWIND_INFO 1
++
++/* All ELF targets can support DWARF-2.  */
++
++#define DWARF2_DEBUGGING_INFO 1
++
++/* The GNU tools operate better with dwarf2, and it is required by some
++   psABI's.  Since we don't have any native tools to be compatible with,
++   default to dwarf2.  */
++
++#ifndef PREFERRED_DEBUGGING_TYPE
++#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
++#endif
++
++/* All SVR4 targets use the ELF object file format.  */
++#define OBJECT_FORMAT_ELF
 +
 +/* Switch into a generic section.  */
 +#define TARGET_ASM_NAMED_SECTION default_elf_asm_named_section
@@ -989,7 +1017,7 @@ Index: libstdc++-v3/config/os/mint/ctype_base.h
 ===================================================================
 --- libstdc++-v3/config/os/mint/ctype_base.h	(nicht existent)
 +++ libstdc++-v3/config/os/mint/ctype_base.h	(Arbeitskopie)
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,59 @@
 +// Locale support -*- C++ -*-
 +
 +// Copyright (C) 1997-2013 Free Software Foundation, Inc.
@@ -1044,6 +1072,7 @@ Index: libstdc++-v3/config/os/mint/ctype_base.h
 +    static const mask cntrl 	= _CTc;
 +    static const mask punct 	= _CTp;
 +    static const mask alnum 	= _CTd | _CTu | _CTl ;
++    //static const mask blank	= _CTb;
 +  };
 +
 +_GLIBCXX_END_NAMESPACE_VERSION

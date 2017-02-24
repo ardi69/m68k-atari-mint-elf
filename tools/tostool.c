@@ -5,6 +5,9 @@
 #include <string.h>
 #pragma pack(push, 1)
 
+#define TOSTOOL_VERSION "0.2.0"
+
+
 #ifdef _MSC_VER
 #	ifdef WIN32
 #		define BIG_ENDIAN	4321
@@ -64,10 +67,114 @@ typedef struct {
 #define SHF_ALLOC	2
 
 #define ELF32_R_TYPE(x) ((x) & 0xff)
-#define R_68K_32	1
-#define R_68K_PC32	4
-#define R_68K_PC16	5
-#define R_68K_PC8	6
+
+// Reloc enum
+#define START_RELOC_NUMBERS(name)   enum name {
+#define RELOC_NUMBER(name, number)  name = number,
+#define END_RELOC_NUMBERS(name)     name };
+START_RELOC_NUMBERS (elf_m68k_reloc_type)
+	RELOC_NUMBER (R_68K_NONE, 0)		/* No reloc */
+	RELOC_NUMBER (R_68K_32, 1)			/* Direct 32 bit  */
+	RELOC_NUMBER (R_68K_16, 2)			/* Direct 16 bit  */
+	RELOC_NUMBER (R_68K_8, 3)			/* Direct 8 bit  */
+	RELOC_NUMBER (R_68K_PC32, 4)		/* PC relative 32 bit */
+	RELOC_NUMBER (R_68K_PC16, 5)		/* PC relative 16 bit */
+	RELOC_NUMBER (R_68K_PC8, 6)			/* PC relative 8 bit */
+	RELOC_NUMBER (R_68K_GOT32, 7)		/* 32 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT16, 8)		/* 16 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT8, 9)		/* 8 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT32O, 10)		/* 32 bit GOT offset */
+	RELOC_NUMBER (R_68K_GOT16O, 11)		/* 16 bit GOT offset */
+	RELOC_NUMBER (R_68K_GOT8O, 12)		/* 8 bit GOT offset */
+	RELOC_NUMBER (R_68K_PLT32, 13)		/* 32 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT16, 14)		/* 16 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT8, 15)		/* 8 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT32O, 16)		/* 32 bit PLT offset */
+	RELOC_NUMBER (R_68K_PLT16O, 17)		/* 16 bit PLT offset */
+	RELOC_NUMBER (R_68K_PLT8O, 18)		/* 8 bit PLT offset */
+	RELOC_NUMBER (R_68K_COPY, 19)		/* Copy symbol at runtime */
+	RELOC_NUMBER (R_68K_GLOB_DAT, 20)	/* Create GOT entry */
+	RELOC_NUMBER (R_68K_JMP_SLOT, 21)	/* Create PLT entry */
+	RELOC_NUMBER (R_68K_RELATIVE, 22)	/* Adjust by program base */
+	/* These are GNU extensions to enable C++ vtable garbage collection.  */
+	RELOC_NUMBER (R_68K_GNU_VTINHERIT, 23)
+	RELOC_NUMBER (R_68K_GNU_VTENTRY, 24)
+	/* TLS static relocations.  */
+	RELOC_NUMBER (R_68K_TLS_GD32, 25)
+	RELOC_NUMBER (R_68K_TLS_GD16, 26)
+	RELOC_NUMBER (R_68K_TLS_GD8, 27)
+	RELOC_NUMBER (R_68K_TLS_LDM32, 28)
+	RELOC_NUMBER (R_68K_TLS_LDM16, 29)
+	RELOC_NUMBER (R_68K_TLS_LDM8, 30)
+	RELOC_NUMBER (R_68K_TLS_LDO32, 31)
+	RELOC_NUMBER (R_68K_TLS_LDO16, 32)
+	RELOC_NUMBER (R_68K_TLS_LDO8, 33)
+	RELOC_NUMBER (R_68K_TLS_IE32, 34)
+	RELOC_NUMBER (R_68K_TLS_IE16, 35)
+	RELOC_NUMBER (R_68K_TLS_IE8, 36)
+	RELOC_NUMBER (R_68K_TLS_LE32, 37)
+	RELOC_NUMBER (R_68K_TLS_LE16, 38)
+	RELOC_NUMBER (R_68K_TLS_LE8, 39)
+	RELOC_NUMBER (R_68K_TLS_DTPMOD32, 40)
+	RELOC_NUMBER (R_68K_TLS_DTPREL32, 41)
+	RELOC_NUMBER (R_68K_TLS_TPREL32, 42)
+END_RELOC_NUMBERS (R_68K_max)
+#undef START_RELOC_NUMBERS
+#undef RELOC_NUMBER
+#undef END_RELOC_NUMBERS
+
+// Reloc names
+#define START_RELOC_NUMBERS(name) static const char *name (unsigned long rtype) { switch (rtype) {
+#define RELOC_NUMBER(name, number) case number: return #name;
+#define END_RELOC_NUMBERS(name) default: return NULL; } }
+START_RELOC_NUMBERS (elf_m68k_reloc_name)
+	RELOC_NUMBER (R_68K_NONE, 0)		/* No reloc */
+	RELOC_NUMBER (R_68K_32, 1)			/* Direct 32 bit  */
+	RELOC_NUMBER (R_68K_16, 2)			/* Direct 16 bit  */
+	RELOC_NUMBER (R_68K_8, 3)			/* Direct 8 bit  */
+	RELOC_NUMBER (R_68K_PC32, 4)		/* PC relative 32 bit */
+	RELOC_NUMBER (R_68K_PC16, 5)		/* PC relative 16 bit */
+	RELOC_NUMBER (R_68K_PC8, 6)			/* PC relative 8 bit */
+	RELOC_NUMBER (R_68K_GOT32, 7)		/* 32 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT16, 8)		/* 16 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT8, 9)		/* 8 bit PC relative GOT entry */
+	RELOC_NUMBER (R_68K_GOT32O, 10)		/* 32 bit GOT offset */
+	RELOC_NUMBER (R_68K_GOT16O, 11)		/* 16 bit GOT offset */
+	RELOC_NUMBER (R_68K_GOT8O, 12)		/* 8 bit GOT offset */
+	RELOC_NUMBER (R_68K_PLT32, 13)		/* 32 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT16, 14)		/* 16 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT8, 15)		/* 8 bit PC relative PLT address */
+	RELOC_NUMBER (R_68K_PLT32O, 16)		/* 32 bit PLT offset */
+	RELOC_NUMBER (R_68K_PLT16O, 17)		/* 16 bit PLT offset */
+	RELOC_NUMBER (R_68K_PLT8O, 18)		/* 8 bit PLT offset */
+	RELOC_NUMBER (R_68K_COPY, 19)		/* Copy symbol at runtime */
+	RELOC_NUMBER (R_68K_GLOB_DAT, 20)	/* Create GOT entry */
+	RELOC_NUMBER (R_68K_JMP_SLOT, 21)	/* Create PLT entry */
+	RELOC_NUMBER (R_68K_RELATIVE, 22)	/* Adjust by program base */
+	/* These are GNU extensions to enable C++ vtable garbage collection.  */
+	RELOC_NUMBER (R_68K_GNU_VTINHERIT, 23)
+	RELOC_NUMBER (R_68K_GNU_VTENTRY, 24)
+	/* TLS static relocations.  */
+	RELOC_NUMBER (R_68K_TLS_GD32, 25)
+	RELOC_NUMBER (R_68K_TLS_GD16, 26)
+	RELOC_NUMBER (R_68K_TLS_GD8, 27)
+	RELOC_NUMBER (R_68K_TLS_LDM32, 28)
+	RELOC_NUMBER (R_68K_TLS_LDM16, 29)
+	RELOC_NUMBER (R_68K_TLS_LDM8, 30)
+	RELOC_NUMBER (R_68K_TLS_LDO32, 31)
+	RELOC_NUMBER (R_68K_TLS_LDO16, 32)
+	RELOC_NUMBER (R_68K_TLS_LDO8, 33)
+	RELOC_NUMBER (R_68K_TLS_IE32, 34)
+	RELOC_NUMBER (R_68K_TLS_IE16, 35)
+	RELOC_NUMBER (R_68K_TLS_IE8, 36)
+	RELOC_NUMBER (R_68K_TLS_LE32, 37)
+	RELOC_NUMBER (R_68K_TLS_LE16, 38)
+	RELOC_NUMBER (R_68K_TLS_LE8, 39)
+	RELOC_NUMBER (R_68K_TLS_DTPMOD32, 40)
+	RELOC_NUMBER (R_68K_TLS_DTPREL32, 41)
+	RELOC_NUMBER (R_68K_TLS_TPREL32, 42)
+END_RELOC_NUMBERS (R_68K_max)
+
 
 #define ELF32_R_SYM(x)  ((x) >> 8)
 
@@ -150,6 +257,8 @@ static uint32_t prg_flags = (_MINT_F_FASTLOAD | _MINT_F_ALTLOAD | _MINT_F_ALTALL
 static int32_t  stack_size = 0;
 
 int verbosity = 0;
+int have_gc_sections = 0;
+int have_ld_hijacker = 0;
 
 #if BYTE_ORDER == BIG_ENDIAN
 
@@ -190,7 +299,6 @@ typedef struct
 
 typedef struct {
 	TOS_hdr		header;
-	uint32_t	e_entry;
 	Elf32_Shdr	*shdrs;
 	uint16_t	shnum;
 	char		*shstrtab;
@@ -208,33 +316,33 @@ typedef struct {
 
 
 void print_options() {
-	fprintf(stderr, "  --[no-]fastload             Enable/Disable not cleaning the heap on startup\n");
-	fprintf(stderr, "  --[no-]altram,\n");
-	fprintf(stderr, "  --[no-]fastram              Enable/Disable loading into alternate RAM\n");
-	fprintf(stderr, "  --[no-]altalloc,\n");
-	fprintf(stderr, "  --[no-]fastalloc            Enable/Disable malloc from alternate RAM\n");
-	fprintf(stderr, "  --[no-]best-fit             Enable/Disable loading with optimal heap size\n");
-	fprintf(stderr, "  --[no-]sharable-text,\n");
-	fprintf(stderr, "  --[no-]shared-text,\n");
-	fprintf(stderr, "  --[no-]baserel              Enable/Disable sharing the text segment\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "The following memory options are mutually exclusive:\n");
-	fprintf(stderr, "  --private-memory            Process memory is not accessible\n");
-	fprintf(stderr, "  --global-memory             Process memory is readable and writable\n");
-	fprintf(stderr, "  --super-memory              Process memory is accessible in supervisor mode\n");
-	fprintf(stderr, "  --readonly-memory,\n");
-	fprintf(stderr, "  --readable-memory           Process memory is readable but not writable\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "  --prg-flags <value>         Set all the flags with an integer raw value\n");
-	fprintf(stderr, "  --stack <size>              Override the stack size (suffix k or M allowed)\n");
+	fprintf(stdout, "  --[no-]fastload             Enable/Disable not cleaning the heap on startup\n");
+	fprintf(stdout, "  --[no-]altram,\n");
+	fprintf(stdout, "  --[no-]fastram              Enable/Disable loading into alternate RAM\n");
+	fprintf(stdout, "  --[no-]altalloc,\n");
+	fprintf(stdout, "  --[no-]fastalloc            Enable/Disable malloc from alternate RAM\n");
+	fprintf(stdout, "  --[no-]best-fit             Enable/Disable loading with optimal heap size\n");
+	fprintf(stdout, "  --[no-]sharable-text,\n");
+	fprintf(stdout, "  --[no-]shared-text,\n");
+	fprintf(stdout, "  --[no-]baserel              Enable/Disable sharing the text segment\n");
+	fprintf(stdout, "\n");
+	fprintf(stdout, "The following memory options are mutually exclusive:\n");
+	fprintf(stdout, "  --private-memory            Process memory is not accessible\n");
+	fprintf(stdout, "  --global-memory             Process memory is readable and writable\n");
+	fprintf(stdout, "  --super-memory              Process memory is accessible in supervisor mode\n");
+	fprintf(stdout, "  --readonly-memory,\n");
+	fprintf(stdout, "  --readable-memory           Process memory is readable but not writable\n");
+	fprintf(stdout, "\n");
+	fprintf(stdout, "  --prg-flags <value>         Set all the flags with an integer raw value\n");
+	fprintf(stdout, "  --stack <size>              Override the stack size (suffix k or M allowed)\n");
 }
 
 void usage(const char *name) {
-	fprintf(stderr, "Usage: %s [options] [--] elf-file tos-file\n", name);
-	fprintf(stderr, " Convert an ELF file to a TOS file (by segments)\n");
-	fprintf(stderr, " Options:\n");
-	fprintf(stderr, "  -h, --help                  Show this help\n");
-	fprintf(stderr, "  -v                          Be more verbose (twice for even more)\n");
+	fprintf(stdout, "Usage: %s [options] [--] elf-file tos-file\n", name);
+	fprintf(stdout, " Convert an ELF file to a TOS file (by segments)\n");
+	fprintf(stdout, " Options:\n");
+	fprintf(stdout, "  -h, --help                  Show this help\n");
+	fprintf(stdout, "  -v                          Be more verbose (twice for even more)\n");
 	print_options();
 }
 
@@ -279,6 +387,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	uint32_t i,j;
 	Elf32_Ehdr ehdr;
 	Elf32_Phdr phdr;
+	uint32_t e_entry = 0;
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Reading ELF file...\n");
@@ -306,10 +415,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	if(swap16(ehdr.e_machine) != EM_68K)
 		die("Machine is not 68K");
 
-	map->e_entry = swap32(ehdr.e_entry);
-//		die("ELF has no entrypoint");
-
-//	map->header.entry = ehdr.e_entry;
+	e_entry = swap32(ehdr.e_entry);
 
 	if(verbosity >= 2)
 		fprintf(stderr, "Valid ELF header found\n");
@@ -345,22 +451,23 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
 		ferrordie(map->elf, "reading program headers");
 	if(swap32(head[0]) == 0x203a001a || swap32(head[1]) == 0x4efb08fa) {
-		map->have_ext_program_header = map->e_entry ? map->e_entry : 0xe4;
+		map->have_ext_program_header = e_entry ? e_entry : 0xe4;
 		if(fseek(map->elf, 0xe4-8, SEEK_CUR) < 0)
 			ferrordie(map->elf, "reading program headers");
 		if(fread(head, sizeof(uint32_t), 2, map->elf)!=2)
 			ferrordie(map->elf, "reading program headers");
-	} else if(map->e_entry) {
-		if(swap32(head[0]) != 0x70004afc) // slb
-			fprintf(stderr, "Warning: entry point given but a slb header detected. Entry point ignored\n");
-		else
-			fprintf(stderr, "Warning: entry point given but no extended program header. Entry point ignored\n");
-		map->e_entry = 0;
-		// die("no extended program header but entry point was given");
+	} else if(e_entry) {
+		fprintf(stderr, "Warning: entry point given but no extended program header. Entry point ignored\n");
+		e_entry = 0;
 	}
 	if(swap32(head[0]) == 0x70004afc) { // slb
 		map->is_slb = 1;
 	}
+	if(e_entry && e_entry != 0xe4 && map->is_slb) {
+		fprintf(stderr, "Warning: entry point given but a slb header detected. Entry point ignored\n");
+		map->have_ext_program_header = 0xe4;
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// section headers
 	//////////////////////////////////////////////////////////////////////////
@@ -406,6 +513,25 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	if(map->is_slb && map->header.ph_blen==0)
 		map->header.ph_blen=swap32(2); // MagiC SLB dont work with empty bss secment
 
+	if(map->header.ph_prgflags /*.startup_size*/ == 0 && !map->is_slb && e_entry == 0) {
+		if(have_ld_hijacker) {
+			if(have_gc_sections) {
+				fprintf(stderr, "Error: No entry point found! The '.text' section of the first linked file was removed with high probability. Use the '-Map'-linker option to create a map file to verify correct linking! To force an entry point ");
+				if(map->have_ext_program_header)
+					fprintf(stderr, "use the '-e' linker option, ");
+				fprintf(stderr, "put your entry in section '.text.entry.mint' or use a '*crt0*.o' file\n");
+				exit(1);
+			}
+		} else {
+			// use of --gc-sections unknown
+			fprintf(stderr, "Warning: no entry point found! Your program is possibly not runable. Use the '-Map'-linker option to create a map file to verify correct linking! To force an entry point ");
+			if(map->have_ext_program_header)
+				fprintf(stderr, "use the '-e' linker option, ");
+			fprintf(stderr, "put your entry in section '.text.entry.mint' or use a '*crt0*.o' file\n");
+		}
+
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// sections .symtab
 	//////////////////////////////////////////////////////////////////////////
@@ -423,14 +549,11 @@ void read_elf_segments(TOS_map *map, const char *elf)
 		}
 	}
 	if(syms && sym_names) {
-		uint32_t _startup_size=0;
 		for(i = 0; i < sym_num; i++) {
 			if(!strcmp("__stksize", &sym_names[swap32(syms[i].st_name)]))
 				map->stack_pos = swap32(syms[i].st_value);
 			else if(!strcmp("_slb_version", &sym_names[swap32(syms[i].st_name)]))
 				map->slb_version_pos = swap32(syms[i].st_value);
-			else if(!strcmp(".startup_size", &sym_names[swap32(syms[i].st_name)]))
-				_startup_size = swap32(syms[i].st_value);
 		}
 		if(map->stack_pos) {
 			if(fseek(map->elf, map->program_off + map->stack_pos, SEEK_SET) < 0)
@@ -439,11 +562,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				ferrordie(map->elf, "reading _stksize");
 			map->stack_size = (int32_t)swap32((uint32_t)map->stack_size);
 		}
-		if(!_startup_size && !map->is_slb && map->e_entry == 0) {
-			die("Entry not found: put the entry in section '.text.entry.mint' or in section .text of *crt0*.o or startup.o%s", (map->have_ext_program_header ? " or use the '-e' option to set an entry point" : ""));
-		}
-	} else if(map->e_entry == 0)
-		die("missong symtab: can't check korrect startup position");
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// sections .rela.*
@@ -474,18 +593,16 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				{
 					uint32_t r_type = ELF32_R_TYPE(swap32(tmp_relas[j].r_info));
 					uint32_t r_offset = swap32(tmp_relas[j].r_offset);
+					uint32_t r_sym = ELF32_R_SYM(swap32(tmp_relas[j].r_info));
+					Elf32_Sym *sym = syms ? &syms[r_sym] : NULL;
+					const char *sym_name = (sym && sym_names) ? &sym_names[swap32(sym->st_name)] : "";
 					if (r_type == R_68K_32) {
 						uint32_t use_rela = 1;
-						uint32_t r_sym = ELF32_R_SYM(swap32(tmp_relas[j].r_info));
 						if(r_offset & 1) {
 							error = 1;
-							const char *sym_name = (syms && sym_names) ? &sym_names[swap32(syms[r_sym].st_name)] : "";
 							fprintf(stderr, "Error: rela an odd position detected (not supported by atari/mint) offset = %#x symbol = %s in %s\n", r_offset, sym_name, s_name);
 						}
-						if(syms && sym_names && tmp_relas[j].r_addend == 0) {
-							Elf32_Sym *sym = &syms[r_sym];
-							const char *sym_name = &sym_names[swap32(sym->st_name)];
-
+						if(sym && tmp_relas[j].r_addend == 0) {
 							if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
 								/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
 								if(fseek(map->elf, map->program_off + r_offset, SEEK_SET) < 0)
@@ -498,8 +615,9 @@ void read_elf_segments(TOS_map *map, const char *elf)
 						}
 						if(use_rela)
 							*rela_end++ = r_offset;
-					} else if(r_type != R_68K_PC32 && r_type != R_68K_PC16 && r_type != R_68K_PC8)
-						fprintf(stderr, "Warning: Found relocation other than R_68K_32, R_68K_PC8, R_68K_PC16 or R_68K_PC32 (r_type=%i)\n", r_type);
+					} else if(r_type != R_68K_NONE && r_type != R_68K_PC32 && r_type != R_68K_PC16 && r_type != R_68K_PC8) {
+						fprintf(stderr, "Warning: got unexpected relocation type %s (offset=%#X%s%s) - left unhandled\n", elf_m68k_reloc_name(r_type), r_offset, *sym_name ? "; sym=":"", sym_name);
+					}
 				}
 				free(tmp_relas);
 			}
@@ -575,14 +693,14 @@ void write_tos(TOS_map *map, const char *tos)
 	int written;
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Writing TOS file...\n");
+		fprintf(stderr, "writing TOS file...\n");
 
 	tosf = fopen(tos, "w+b");
 	if(!tosf)
 		perrordie("Could not open TOS file");
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Writing TOS header ...\n");
+		fprintf(stderr, "writing TOS header ...\n");
 	if(map->is_slb && (prg_flags & _MINT_F_BESTFIT)==0) {
 		fprintf(stderr, "Warning: target is shared library force --best-fit ...\n");
 		prg_flags |= _MINT_F_BESTFIT;
@@ -590,15 +708,14 @@ void write_tos(TOS_map *map, const char *tos)
 	map->header.ph_prgflags = swap32(prg_flags);
 	written = fwrite(&map->header, sizeof(TOS_hdr), 1, tosf);
 	if(written != 1)
-		ferrordie(tosf, "Writing TOS header");
+		ferrordie(tosf, "writing TOS header");
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Writing TEXT & DATA segment ...\n");
+		fprintf(stderr, "writing TEXT & DATA segment ...\n");
 	fcpy(tosf, map->elf, ftell(tosf), map->program_off, map->program_size);
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Writing tpa relocation ...\n");
-	fprintf(stderr, "Writing tpa relocation at %lx ...\n", ftell(tosf));
+		fprintf(stderr, "writing tpa relocation ...\n");
 	uint32_t dummy=0;
 	uint8_t *relas = (uint8_t*)&dummy;
 	uint32_t rela_size = 4;
@@ -643,7 +760,7 @@ void write_tos(TOS_map *map, const char *tos)
 				ferrordie(tosf, "writing __stksize");
 		}
 	} else if(stack_size)
-		fprintf(stderr, "warning: symbol '_stksize' not found - ignoring stack size %i\n", stack_size);
+		fprintf(stderr, "Warning: symbol '_stksize' not found - ignoring stack size %i\n", stack_size);
 
 	if(verbosity >= 2)
 		fprintf(stderr, "All done!\n");
@@ -673,8 +790,15 @@ int main(int argc, char **argv)
 		} else if(!strcmp(*arg, "--target-help")) {
 			print_options();
 			return 0;
+		} else if(!strcmp(*arg, "--gc-sections")) {
+			// hidden option
+			have_gc_sections = 1;
+		} else if(!strcmp(*arg, "--ld-hijacker")) {
+			// hidden option
+			have_ld_hijacker = 1;
 		} else if(!strcmp(*arg, "-v")) {
 			verbosity++;
+			if(verbosity == 1) fprintf(stdout, "tostool v" TOSTOOL_VERSION " (c) by ardisoft (Armin Diedering)\n");
 		} else if(!strcmp(*arg, "--")) {
 			arg++;
 			argc--;
@@ -702,7 +826,7 @@ int main(int argc, char **argv)
 				char* tail;
 				unsigned long flag_value = strtoul (*arg, &tail, 0);
 				if (*tail != '\0')
-					fprintf(stderr, "warning: ignoring invalid program flags %s\n", *arg);
+					fprintf(stderr, "Warning: ignoring invalid program flags %s\n", *arg);
 				else
 					prg_flags = flag_value;
 			} else if(!strcmp(p, "stack")) {
@@ -723,7 +847,7 @@ int main(int argc, char **argv)
 					++tail;
 				}
 				if (*tail != '\0')
-					fprintf(stderr, "warning: ignoring invalid stack size %s\n", *arg);
+					fprintf(stderr, "Warning: ignoring invalid stack size %s\n", *arg);
 				else
 					stack_size = size;
 			} else {
