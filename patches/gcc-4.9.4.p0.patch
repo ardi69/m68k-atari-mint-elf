@@ -87,19 +87,6 @@ Index: configure.ac
    m68*-*-* | fido-*-*)
      libgloss_dir=m68k
      ;;
-Index: gcc/common.opt
-===================================================================
---- gcc/common.opt	(Revision 23)
-+++ gcc/common.opt	(Arbeitskopie)
-@@ -2426,7 +2426,7 @@
- Assume signed arithmetic overflow wraps around
- 
- fzero-initialized-in-bss
--Common Report Var(flag_zero_initialized_in_bss) Init(1)
-+Common Report Var(flag_zero_initialized_in_bss) Init(0)
- Put zero initialized data in the bss section
- 
- g
 Index: gcc/config.gcc
 ===================================================================
 --- gcc/config.gcc	(Revision 23)
