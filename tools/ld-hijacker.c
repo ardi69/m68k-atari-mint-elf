@@ -10,7 +10,7 @@
 #include <malloc.h>
 
 #define A_ELF "a.elf"
-#define A_OUT "a.prg" // "a.out"
+#define A_OUT "a.out"
 
 struct {
 	const char *option;
