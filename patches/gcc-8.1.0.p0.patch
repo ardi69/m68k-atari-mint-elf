@@ -1,8 +1,8 @@
 Index: config-ml.in
 ===================================================================
---- config-ml.in	(Revision 23)
+--- config-ml.in	(Revision 2)
 +++ config-ml.in	(Arbeitskopie)
-@@ -338,6 +338,23 @@
+@@ -346,6 +346,23 @@
  	    esac
  	  done
  	fi
@@ -28,9 +28,9 @@ Index: config-ml.in
  	if [ x$enable_single_float = xno ]
 Index: config.guess
 ===================================================================
---- config.guess	(Revision 23)
+--- config.guess	(Revision 2)
 +++ config.guess	(Arbeitskopie)
-@@ -415,22 +415,22 @@
+@@ -439,22 +439,22 @@
      # MiNT.  But MiNT is downward compatible to TOS, so this should
      # be no problem.
      atarist[e]:*MiNT:*:* | atarist[e]:*mint:*:* | atarist[e]:*TOS:*:*)
@@ -61,9 +61,9 @@ Index: config.guess
  	echo m68k-apple-machten${UNAME_RELEASE}
 Index: configure
 ===================================================================
---- configure	(Revision 23)
+--- configure	(Revision 2)
 +++ configure	(Arbeitskopie)
-@@ -3485,6 +3485,9 @@
+@@ -3501,6 +3501,9 @@
    m68hc11-*-*|m6811-*-*|m68hc12-*-*|m6812-*-*)
      libgloss_dir=m68hc11
      ;;
@@ -75,9 +75,9 @@ Index: configure
      ;;
 Index: configure.ac
 ===================================================================
---- configure.ac	(Revision 23)
+--- configure.ac	(Revision 2)
 +++ configure.ac	(Arbeitskopie)
-@@ -813,6 +813,9 @@
+@@ -832,6 +832,9 @@
    m68hc11-*-*|m6811-*-*|m68hc12-*-*|m6812-*-*)
      libgloss_dir=m68hc11
      ;;
@@ -89,24 +89,24 @@ Index: configure.ac
      ;;
 Index: gcc/common.opt
 ===================================================================
---- gcc/common.opt	(Revision 23)
+--- gcc/common.opt	(Revision 2)
 +++ gcc/common.opt	(Arbeitskopie)
-@@ -2015,8 +2015,9 @@
- Common Report Var(time_report)
- Report the time taken by each compiler pass
+@@ -2442,8 +2442,9 @@
+ Common Report Var(time_report_details)
+ Record times taken by sub-phases separately.
  
 +; on atari-mint defaulted to TLS_MODEL_LOCAL_EXEC
  ftls-model=
 -Common Joined RejectNegative Enum(tls_model) Var(flag_tls_default) Init(TLS_MODEL_GLOBAL_DYNAMIC)
 +Common Joined RejectNegative Enum(tls_model) Var(flag_tls_default) Init(TLS_MODEL_LOCAL_EXEC)
- -ftls-model=[global-dynamic|local-dynamic|initial-exec|local-exec]	Set the default thread-local storage code generation model
+ -ftls-model=[global-dynamic|local-dynamic|initial-exec|local-exec]	Set the default thread-local storage code generation model.
  
  Enum
 Index: gcc/config.gcc
 ===================================================================
---- gcc/config.gcc	(Revision 23)
+--- gcc/config.gcc	(Revision 2)
 +++ gcc/config.gcc	(Arbeitskopie)
-@@ -1877,6 +1877,15 @@
+@@ -1999,6 +1999,15 @@
  	tm_defines="${tm_defines} MOTOROLA=1"
  	tmake_file="${tmake_file} m68k/t-floatlib m68k/t-linux m68k/t-mlibs"
  	;;
@@ -124,17 +124,17 @@ Index: gcc/config.gcc
  	default_cf_cpu=5206
 Index: gcc/config/m68k/m68k.c
 ===================================================================
---- gcc/config/m68k/m68k.c	(Revision 23)
+--- gcc/config/m68k/m68k.c	(Revision 3)
 +++ gcc/config/m68k/m68k.c	(Arbeitskopie)
-@@ -167,6 +167,7 @@
- static bool m68k_cannot_force_const_mem (enum machine_mode mode, rtx x);
+@@ -187,6 +187,7 @@
+ static bool m68k_cannot_force_const_mem (machine_mode mode, rtx x);
  static bool m68k_output_addr_const_extra (FILE *, rtx);
  static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
 +static void m68k_finish_slb_export ();
- 
- /* Initialize the GCC target structure.  */
- 
-@@ -203,6 +204,9 @@
+ static enum flt_eval_method
+ m68k_excess_precision (enum excess_precision_type);
+ static unsigned int m68k_hard_regno_nregs (unsigned int, machine_mode);
+@@ -230,6 +231,9 @@
  #undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
  #define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_const_tree_hwi_hwi_const_tree_true
  
@@ -144,16 +144,16 @@ Index: gcc/config/m68k/m68k.c
  #undef TARGET_ASM_FILE_START_APP_OFF
  #define TARGET_ASM_FILE_START_APP_OFF true
  
-@@ -318,6 +322,8 @@
-     m68k_handle_fndecl_attribute, false },
-   { "interrupt_thread", 0, 0, true,  false, false,
-     m68k_handle_fndecl_attribute, false },
+@@ -362,6 +366,8 @@
+     m68k_handle_fndecl_attribute, NULL },
+   { "interrupt_thread", 0, 0, true,  false, false, false,
+     m68k_handle_fndecl_attribute, NULL },
 +  { "slb_export", 1, 1, true,  false, false,
-+    m68k_handle_fndecl_attribute, false },
-   { NULL,                0, 0, false, false, false, NULL, false }
++    m68k_handle_fndecl_attribute, NULL },
+   { NULL, 0, 0, false, false, false, false, NULL, NULL }
  };
  
-@@ -721,6 +727,15 @@
+@@ -767,6 +773,15 @@
    return m68k_fk_normal_function;
  }
  
@@ -169,7 +169,7 @@ Index: gcc/config/m68k/m68k.c
  /* Handle an attribute requiring a FUNCTION_DECL; arguments as in
     struct attribute_spec.handler.  */
  static tree
-@@ -736,6 +751,26 @@
+@@ -782,6 +797,26 @@
        *no_add_attrs = true;
      }
  
@@ -196,7 +196,7 @@ Index: gcc/config/m68k/m68k.c
    if (m68k_get_function_kind (*node) != m68k_fk_normal_function)
      {
        error ("multiple interrupt attributes not allowed");
-@@ -752,7 +787,56 @@
+@@ -798,7 +833,56 @@
    return NULL_TREE;
  }
  
@@ -255,9 +255,9 @@ Index: gcc/config/m68k/m68k.c
    int regno, saved;
 Index: gcc/config/m68k/m68k.h
 ===================================================================
---- gcc/config/m68k/m68k.h	(Revision 23)
+--- gcc/config/m68k/m68k.h	(Revision 2)
 +++ gcc/config/m68k/m68k.h	(Arbeitskopie)
-@@ -130,7 +130,10 @@
+@@ -131,7 +131,10 @@
  	}								\
  									\
        if (TARGET_68881)							\
@@ -269,18 +269,18 @@ Index: gcc/config/m68k/m68k.h
  									\
        if (TARGET_COLDFIRE)						\
  	{								\
-@@ -977,4 +980,6 @@
- extern int m68k_sched_address_bypass_p (rtx, rtx);
- extern int m68k_sched_indexed_address_bypass_p (rtx, rtx);
+@@ -947,4 +950,6 @@
+ extern int m68k_sched_address_bypass_p (rtx_insn *, rtx_insn *);
+ extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
  
 +extern void m68k_compute_slb_export (tree fndecl);
 +
  #define CPU_UNITS_QUERY 1
 Index: gcc/config/m68k/m68k.md
 ===================================================================
---- gcc/config/m68k/m68k.md	(Revision 23)
+--- gcc/config/m68k/m68k.md	(Revision 2)
 +++ gcc/config/m68k/m68k.md	(Arbeitskopie)
-@@ -7076,7 +7076,7 @@
+@@ -7159,7 +7159,7 @@
      }
    else if (MOTOROLA)
      {
@@ -291,15 +291,15 @@ Index: gcc/config/m68k/m68k.md
  	   calculate the absolute value.  The offset and "lea"
 Index: gcc/config/m68k/m68k.opt
 ===================================================================
---- gcc/config/m68k/m68k.opt	(Revision 23)
+--- gcc/config/m68k/m68k.opt	(Revision 2)
 +++ gcc/config/m68k/m68k.opt	(Arbeitskopie)
-@@ -193,3 +193,67 @@
+@@ -197,3 +197,67 @@
  mxtls
  Target Report Mask(XTLS)
- Support TLS segment larger than 64K
+ Support TLS segment larger than 64K.
 +
 +slb
-+Target 
++Target
 +create a shared library
 +
 +cmini
@@ -363,7 +363,7 @@ Index: gcc/config/m68k/m68k.opt
 +same as -Wl,--readable-memory                    Process memory is readable but not writable
 Index: gcc/config/m68k/math-68881.h
 ===================================================================
---- gcc/config/m68k/math-68881.h	(Revision 23)
+--- gcc/config/m68k/math-68881.h	(Revision 2)
 +++ gcc/config/m68k/math-68881.h	(Arbeitskopie)
 @@ -44,6 +44,16 @@
  
@@ -963,9 +963,9 @@ Index: gcc/config/m68k/t-mint
 +INSTALL_LIBGCC = install-multilib
 Index: gcc/final.c
 ===================================================================
---- gcc/final.c	(Revision 23)
+--- gcc/final.c	(Revision 2)
 +++ gcc/final.c	(Arbeitskopie)
-@@ -4471,6 +4471,7 @@
+@@ -4719,6 +4719,7 @@
      targetm.asm_out.destructor (XEXP (DECL_RTL (current_function_decl), 0),
  				decl_fini_priority_lookup
  				  (current_function_decl));
@@ -975,7 +975,7 @@ Index: gcc/final.c
  
 Index: gcc/version.c
 ===================================================================
---- gcc/version.c	(Revision 23)
+--- gcc/version.c	(Revision 2)
 +++ gcc/version.c	(Arbeitskopie)
 @@ -31,5 +31,5 @@
     BASEVER, DATESTAMP, DEVPHASE, and REVISION are defined by the
@@ -986,9 +986,9 @@ Index: gcc/version.c
  const char pkgversion_string[] = PKGVERSION;
 Index: libgcc/config.host
 ===================================================================
---- libgcc/config.host	(Revision 23)
+--- libgcc/config.host	(Revision 2)
 +++ libgcc/config.host	(Arbeitskopie)
-@@ -764,6 +764,9 @@
+@@ -861,6 +861,9 @@
  	fi
  	md_unwind_header=m68k/linux-unwind.h
  	;;
@@ -998,9 +998,35 @@ Index: libgcc/config.host
  m68k-*-rtems*)
  	tmake_file="$tmake_file m68k/t-floatlib"
  	extra_parts="$extra_parts crti.o crtn.o"
+Index: libgcc/config/m68k/fpgnulib.c
+===================================================================
+--- libgcc/config/m68k/fpgnulib.c	(Revision 2)
++++ libgcc/config/m68k/fpgnulib.c	(Arbeitskopie)
+@@ -111,10 +111,10 @@
+   union float_long fl;
+ 
+   fl.f = a;
+-  if (EXP(fl.l) == EXP(~0u) && (MANT(fl.l) & ~HIDDEN) != 0)
++  if (EXP(fl.l) == EXP(~0ul) && (MANT(fl.l) & ~HIDDEN) != 0)
+     return 1;
+   fl.f = b;
+-  if (EXP(fl.l) == EXP(~0u) && (MANT(fl.l) & ~HIDDEN) != 0)
++  if (EXP(fl.l) == EXP(~0ul) && (MANT(fl.l) & ~HIDDEN) != 0)
+     return 1;
+   return 0;
+ }
+@@ -290,7 +290,7 @@
+ 
+   exp = EXPD (dl1) - EXCESSD + EXCESS;
+ 
+-  sticky = dl1.l.lower & ((1 << 22) - 1);
++  sticky = dl1.l.lower & ((1ul << 22) - 1);
+   mant = MANTD (dl1);
+   /* shift double mantissa 6 bits so we can round */
+   sticky |= mant & ((1 << 6) - 1);
 Index: libgcc/config/m68k/lb1sf68.S
 ===================================================================
---- libgcc/config/m68k/lb1sf68.S	(Revision 23)
+--- libgcc/config/m68k/lb1sf68.S	(Revision 2)
 +++ libgcc/config/m68k/lb1sf68.S	(Arbeitskopie)
 @@ -666,7 +666,9 @@
  	.globl SYM (__negdf2)
@@ -1022,11 +1048,43 @@ Index: libgcc/config/m68k/lb1sf68.S
  
  | These are common routines to return and signal exceptions.	
  
+Index: libgcc/unwind-dw2-fde.c
+===================================================================
+--- libgcc/unwind-dw2-fde.c	(Revision 2)
++++ libgcc/unwind-dw2-fde.c	(Arbeitskopie)
+@@ -23,6 +23,11 @@
+ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ <http://www.gnu.org/licenses/>.  */
+ 
++#if defined(__mcoldfire__) && defined(__MSHORT__)
++// this is only a bad hack
++#pragma GCC optimize "O0"
++#endif
++
+ #ifndef _Unwind_Find_FDE
+ #include "tconfig.h"
+ #include "tsystem.h"
+Index: libgcc/unwind-dw2.c
+===================================================================
+--- libgcc/unwind-dw2.c	(Revision 2)
++++ libgcc/unwind-dw2.c	(Arbeitskopie)
+@@ -22,6 +22,11 @@
+    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+    <http://www.gnu.org/licenses/>.  */
+ 
++#if defined(__mcoldfire__) && defined(__MSHORT__)
++// this is only a bad hack
++#pragma GCC optimize "O1"
++#endif
++
+ #include "tconfig.h"
+ #include "tsystem.h"
+ #include "coretypes.h"
 Index: libiberty/configure
 ===================================================================
---- libiberty/configure	(Revision 23)
+--- libiberty/configure	(Revision 2)
 +++ libiberty/configure	(Arbeitskopie)
-@@ -4894,6 +4894,8 @@
+@@ -5108,6 +5108,8 @@
      hppa*64*-*-hpux*)
  	# PIC is the default for 64-bit PA HP-UX.
  	;;
@@ -1037,9 +1095,9 @@ Index: libiberty/configure
      i[34567]86-*-mingw* | x86_64-*-mingw*)
 Index: libssp/ssp.c
 ===================================================================
---- libssp/ssp.c	(Revision 23)
+--- libssp/ssp.c	(Revision 2)
 +++ libssp/ssp.c	(Arbeitskopie)
-@@ -63,6 +63,9 @@
+@@ -65,6 +65,9 @@
  #ifdef HAVE_SYSLOG_H
  # include <syslog.h>
  #endif
@@ -1049,7 +1107,7 @@ Index: libssp/ssp.c
  
  void *__stack_chk_guard = 0;
  
-@@ -98,6 +101,9 @@
+@@ -114,6 +117,9 @@
  {
  #ifdef __GNU_LIBRARY__
    extern char * __progname;
@@ -1059,7 +1117,7 @@ Index: libssp/ssp.c
  #else
    static const char __progname[] = "";
  #endif
-@@ -139,6 +145,9 @@
+@@ -155,6 +161,9 @@
      syslog (LOG_CRIT, "%s", msg3);
  #endif /* HAVE_SYSLOG_H */
  
@@ -1069,7 +1127,7 @@ Index: libssp/ssp.c
    /* Try very hard to exit.  Note that signals may be blocked preventing
       the first two options from working.  The use of volatile is here to
       prevent optimizers from "knowing" that __builtin_trap is called first,
-@@ -160,6 +169,7 @@
+@@ -176,6 +185,7 @@
            break;
          }
    }
@@ -1081,10 +1139,10 @@ Index: libstdc++-v3/config/os/mint/ctype_base.h
 ===================================================================
 --- libstdc++-v3/config/os/mint/ctype_base.h	(nicht existent)
 +++ libstdc++-v3/config/os/mint/ctype_base.h	(Arbeitskopie)
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,66 @@
 +// Locale support -*- C++ -*-
 +
-+// Copyright (C) 1997-2013 Free Software Foundation, Inc.
++// Copyright (C) 1997-2018 Free Software Foundation, Inc.
 +//
 +// This file is part of the GNU ISO C++ Library.  This library is free
 +// software; you can redistribute it and/or modify it under the
@@ -1106,11 +1164,16 @@ Index: libstdc++-v3/config/os/mint/ctype_base.h
 +// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 +// <http://www.gnu.org/licenses/>.
 +
++/** @file bits/ctype_base.h
++ *  This is an internal header file, included by other library headers.
++ *  Do not attempt to use it directly. @headername{locale}
++ */
++
 +//
 +// ISO C++ 14882: 22.1  Locales
 +//
 +
-+// Mint C types, taken from mintlib-0.57.3/include/ctype.h
++// Information as gleaned from /usr/include/ctype.h
 +
 +namespace std _GLIBCXX_VISIBILITY(default)
 +{
@@ -1124,19 +1187,318 @@ Index: libstdc++-v3/config/os/mint/ctype_base.h
 +
 +    // NB: Offsets into ctype<char>::_M_table force a particular size
 +    // on the mask type. Because of this, we don't use an enum.
-+    typedef unsigned int 	mask;
-+    static const mask upper    	= _CTu;
-+    static const mask lower 	= _CTl;
-+    static const mask alpha 	= _CTu | _CTl;
-+    static const mask digit 	= _CTd;
-+    static const mask xdigit 	= _CTx;
-+    static const mask space 	= _CTs;
-+    static const mask print 	= _CTP;
-+    static const mask graph 	= _CTg;
-+    static const mask cntrl 	= _CTc;
-+    static const mask punct 	= _CTp;
-+    static const mask alnum 	= _CTd | _CTu | _CTl ;
-+    //static const mask blank	= _CTb;
++    typedef unsigned short 	mask;
++    static const mask upper    	= _ISupper;
++    static const mask lower 	= _ISlower;
++    static const mask alpha 	= _ISupper | _ISlower;
++    static const mask digit 	= _ISdigit;
++    static const mask xdigit 	= _ISxdigit;
++    static const mask space 	= _ISspace;
++    static const mask print 	= _ISprint;
++    static const mask graph 	= _ISgraph;
++    static const mask cntrl 	= _IScntrl;
++    static const mask punct 	= _ISpunct;
++    static const mask alnum 	= _ISupper | _ISlower | _ISdigit;
++#if __cplusplus >= 201103L
++    static const mask blank	= _ISblank;
++#endif
++  };
++
++_GLIBCXX_END_NAMESPACE_VERSION
++} // namespace
+Index: libstdc++-v3/config/os/mint/ctype_configure_char.cc
+===================================================================
+--- libstdc++-v3/config/os/mint/ctype_configure_char.cc	(nicht existent)
++++ libstdc++-v3/config/os/mint/ctype_configure_char.cc	(Arbeitskopie)
+@@ -0,0 +1,99 @@
++// Locale support -*- C++ -*-
++
++// Copyright (C) 2011-2013 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++// <http://www.gnu.org/licenses/>.
++
++/** @file ctype_configure_char.cc */
++
++//
++// ISO C++ 14882: 22.1  Locales
++//
++
++#include <locale>
++#include <cstdlib>
++#include <cstring>
++
++namespace std _GLIBCXX_VISIBILITY(default)
++{
++_GLIBCXX_BEGIN_NAMESPACE_VERSION
++
++// Information as gleaned from /usr/include/ctype.h
++
++  const ctype_base::mask*
++  ctype<char>::classic_table() throw()
++  { return 0; }
++
++  ctype<char>::ctype(__c_locale, const mask* __table, bool __del, 
++		     size_t __refs) 
++  : facet(__refs), _M_del(__table != 0 && __del), 
++  _M_toupper(NULL), _M_tolower(NULL), 
++  _M_table(__table ? __table : classic_table()) 
++  { 
++    memset(_M_widen, 0, sizeof(_M_widen));
++    _M_widen_ok = 0;
++    memset(_M_narrow, 0, sizeof(_M_narrow));
++    _M_narrow_ok = 0;
++  }
++
++  ctype<char>::ctype(const mask* __table, bool __del, size_t __refs) 
++  : facet(__refs), _M_del(__table != 0 && __del), 
++  _M_toupper(NULL), _M_tolower(NULL), 
++  _M_table(__table ? __table : classic_table())
++  { 
++    memset(_M_widen, 0, sizeof(_M_widen));
++    _M_widen_ok = 0;
++    memset(_M_narrow, 0, sizeof(_M_narrow));
++    _M_narrow_ok = 0;
++  }
++
++  char
++  ctype<char>::do_toupper(char __c) const
++  { return ::toupper((int) __c); }
++
++  const char*
++  ctype<char>::do_toupper(char* __low, const char* __high) const
++  {
++    while (__low < __high)
++      {
++	*__low = ::toupper((int) *__low);
++	++__low;
++      }
++    return __high;
++  }
++
++  char
++  ctype<char>::do_tolower(char __c) const
++  { return ::tolower((int) __c); }
++
++  const char* 
++  ctype<char>::do_tolower(char* __low, const char* __high) const
++  {
++    while (__low < __high)
++      {
++	*__low = ::tolower((int) *__low);
++	++__low;
++      }
++    return __high;
++  }
++
++_GLIBCXX_END_NAMESPACE_VERSION
++} // namespace
+Index: libstdc++-v3/config/os/mint/ctype_inline.h
+===================================================================
+--- libstdc++-v3/config/os/mint/ctype_inline.h	(nicht existent)
++++ libstdc++-v3/config/os/mint/ctype_inline.h	(Arbeitskopie)
+@@ -0,0 +1,76 @@
++// Locale support -*- C++ -*-
++
++// Copyright (C) 2000-2013 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++// <http://www.gnu.org/licenses/>.
++
++/** @file bits/ctype_inline.h
++ *  This is an internal header file, included by other library headers.
++ *  Do not attempt to use it directly. @headername{locale}
++ */
++
++//
++// ISO C++ 14882: 22.1  Locales
++//
++  
++// ctype bits to be inlined go here. Non-inlinable (ie virtual do_*)
++// functions go in ctype.cc
++  
++// Mint C types, taken from mintlib-0.57.3/include/ctype.h
++
++namespace std _GLIBCXX_VISIBILITY(default)
++{
++_GLIBCXX_BEGIN_NAMESPACE_VERSION
++
++  bool
++  ctype<char>::
++  is(mask __m, char __c) const
++  { return _ctype[(unsigned char)((__c) + 1)] & __m; }
++
++  const char*
++  ctype<char>::
++  is(const char* __low, const char* __high, mask* __vec) const
++  {
++    while (__low < __high)
++      *__vec++ = _ctype[(*__low++) + 1] ;
++    return __high;
++  }
++
++  const char*
++  ctype<char>::
++  scan_is(mask __m, const char* __low, const char* __high) const
++  {
++    while (__low < __high && !this->is(__m, *__low))
++      ++__low;
++    return __low;
++  }
++
++  const char*
++  ctype<char>::
++  scan_not(mask __m, const char* __low, const char* __high) const
++  {
++    while (__low < __high && this->is(__m, *__low) != 0)
++      ++__low;
++    return __low;
++  }
++
++_GLIBCXX_END_NAMESPACE_VERSION
++} // namespace
+Index: libstdc++-v3/config/os/mint/os_defines.h
+===================================================================
+--- libstdc++-v3/config/os/mint/os_defines.h	(nicht existent)
++++ libstdc++-v3/config/os/mint/os_defines.h	(Arbeitskopie)
+@@ -0,0 +1,36 @@
++// Specific definitions for generic platforms  -*- C++ -*-
++
++// Copyright (C) 2000-2013 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++// <http://www.gnu.org/licenses/>.
++
++/** @file bits/os_defines.h
++ *  This is an internal header file, included by other library headers.
++ *  Do not attempt to use it directly. @headername{iosfwd}
++ */
++
++#ifndef _GLIBCXX_OS_DEFINES
++#define _GLIBCXX_OS_DEFINES 1
++
++// System-specific #define, typedefs, corrections, etc, go here.  This
++// file will come before all others.
++
++#endif
+Index: libstdc++-v3/config/os/mint/ctype_base.h
+===================================================================
+--- libstdc++-v3/config/os/mint/ctype_base.h	(nicht existent)
++++ libstdc++-v3/config/os/mint/ctype_base.h	(Arbeitskopie)
+@@ -0,0 +1,66 @@
++// Locale support -*- C++ -*-
++
++// Copyright (C) 1997-2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++// <http://www.gnu.org/licenses/>.
++
++/** @file bits/ctype_base.h
++ *  This is an internal header file, included by other library headers.
++ *  Do not attempt to use it directly. @headername{locale}
++ */
++
++//
++// ISO C++ 14882: 22.1  Locales
++//
++
++// Information as gleaned from /usr/include/ctype.h
++
++namespace std _GLIBCXX_VISIBILITY(default)
++{
++_GLIBCXX_BEGIN_NAMESPACE_VERSION
++
++  /// @brief  Base class for ctype.
++  struct ctype_base
++  {
++    // Non-standard typedefs.
++    typedef const int* 		__to_type;
++
++    // NB: Offsets into ctype<char>::_M_table force a particular size
++    // on the mask type. Because of this, we don't use an enum.
++    typedef unsigned short 	mask;
++    static const mask upper    	= _ISupper;
++    static const mask lower 	= _ISlower;
++    static const mask alpha 	= _ISupper | _ISlower;
++    static const mask digit 	= _ISdigit;
++    static const mask xdigit 	= _ISxdigit;
++    static const mask space 	= _ISspace;
++    static const mask print 	= _ISprint;
++    static const mask graph 	= _ISgraph;
++    static const mask cntrl 	= _IScntrl;
++    static const mask punct 	= _ISpunct;
++    static const mask alnum 	= _ISupper | _ISlower | _ISdigit;
++#if __cplusplus >= 201103L
++    static const mask blank	= _ISblank;
++#endif
 +  };
 +
 +_GLIBCXX_END_NAMESPACE_VERSION
@@ -1369,22 +1731,22 @@ Index: libstdc++-v3/config/os/mint/os_defines.h
 +#endif
 Index: libstdc++-v3/configure
 ===================================================================
---- libstdc++-v3/configure	(Revision 23)
+--- libstdc++-v3/configure	(Revision 2)
 +++ libstdc++-v3/configure	(Arbeitskopie)
-@@ -52526,7 +52526,7 @@
+@@ -53783,7 +53783,7 @@
  	;;
      esac
      ;;
--  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-knetbsd*-gnu | *-cygwin*)
-+  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-knetbsd*-gnu | *-cygwin* | *-mint*)
+-  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin* | *-solaris*)
++  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin* | *-solaris* | *-mint*)
  
    # All these tests are for C++; save the language and the compiler flags.
    # The CXXFLAGS thing is suspicious, but based on similar bits previously
 Index: libstdc++-v3/configure.host
 ===================================================================
---- libstdc++-v3/configure.host	(Revision 23)
+--- libstdc++-v3/configure.host	(Revision 2)
 +++ libstdc++-v3/configure.host	(Arbeitskopie)
-@@ -290,6 +290,10 @@
+@@ -286,6 +286,10 @@
      esac
      OPT_LDFLAGS="${OPT_LDFLAGS} \$(lt_host_flags)"
      ;;
@@ -1397,32 +1759,14 @@ Index: libstdc++-v3/configure.host
      ;;
 Index: libstdc++-v3/crossconfig.m4
 ===================================================================
---- libstdc++-v3/crossconfig.m4	(Revision 23)
+--- libstdc++-v3/crossconfig.m4	(Revision 2)
 +++ libstdc++-v3/crossconfig.m4	(Arbeitskopie)
-@@ -149,7 +149,7 @@
+@@ -183,7 +183,7 @@
  	;;
      esac
      ;;
--  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-knetbsd*-gnu | *-cygwin*)
-+  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-knetbsd*-gnu | *-cygwin* | *-mint*)
+-  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin* | *-solaris*)
++  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin* | *-solaris* | *-mint*)
      GLIBCXX_CHECK_COMPILER_FEATURES
      GLIBCXX_CHECK_LINKER_FEATURES
      GLIBCXX_CHECK_MATH_SUPPORT
-Index: libstdc++-v3/include/std/type_traits
-===================================================================
---- libstdc++-v3/include/std/type_traits	(Revision 23)
-+++ libstdc++-v3/include/std/type_traits	(Arbeitskopie)
-@@ -2007,10 +2007,11 @@
-       typedef decltype(_S_test<_Tp>(0)) type;
-     };
- 
--  template<typename _CTp, typename... _Args>
-+// _CTp conflicts with mintlib ctype renamed to _CTp_
-+  template<typename _CTp_, typename... _Args>
-     struct __expanded_common_type_wrapper
-     {
--      typedef common_type<typename _CTp::type, _Args...> type;
-+      typedef common_type<typename _CTp_::type, _Args...> type;
-     };
- 
-   template<typename... _Args>

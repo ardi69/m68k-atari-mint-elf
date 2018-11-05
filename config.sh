@@ -4,25 +4,11 @@
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
-# Download source packages
-#---------------------------------------------------------------------------------
-#   0: User selects manually
-#   1: already downloaded
-#   2: download packages
-#---------------------------------------------------------------------------------
-BUILD_DKMINT_DOWNLOAD=1
-
-#---------------------------------------------------------------------------------
 # Toolchain installation directory, comment if not specified
 #---------------------------------------------------------------------------------
 #BUILD_DKPRO_INSTALLDIR=/opt/devkitpro
 BUILD_DKMINT_INSTALLDIR=`pwd`/devkitMINT
 #BUILD_DKMINT_INSTALLDIR=/p/devkitPro
-
-#---------------------------------------------------------------------------------
-# Path to previously downloaded source packages, comment if not specified
-#---------------------------------------------------------------------------------
-BUILD_DKMINT_SRCDIR=`pwd`/sources
 
 #---------------------------------------------------------------------------------
 # Automated script execution

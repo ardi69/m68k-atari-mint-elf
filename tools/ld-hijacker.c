@@ -166,6 +166,9 @@ int main(int argc, char *argv[]) {
 			ld_argv[ld_argc++] = tostool_argv[tostool_argc++] = argv[arg_idx];
 			keep_elf = help = 1;
 
+		} else if (!strcmp(argv[arg_idx], "--strip-all") || !strcmp(argv[arg_idx], "-s")) {
+			// ignore strip-all
+
 		} else if (!strcmp(argv[arg_idx], "--keep-elf")) {
 			keep_elf = 1;
 

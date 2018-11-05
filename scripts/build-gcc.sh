@@ -18,6 +18,13 @@ case $PLATFORM in
 		plugin_ld="--with-plugin-ld=ld"
 		exe_ext=".exe"
 		;;
+	MSYS* )
+		echo
+		echo
+		echo "ERROR wrong uname $PLATFORM"
+		echo
+		echo "if MSYS2 start 'msys2_shell.cmd -ming332'"
+		exit
 esac
 
 # breaks windows restriction sed -i
@@ -138,6 +145,7 @@ if [ ! -f build-ld-hijacker ] || [ `ftime ld-hijacker$exe_ext` -lt `ftime ld-hij
 fi
 
 if [ ! -f installed-ld-hijacker ]; then
+	echo "install ld-hijacker"
 	hijack ld ld-hijacker$exe_ext ld-hijacker
 	touch installed-ld-hijacker
 fi
@@ -156,11 +164,12 @@ if [ ! -f build-strip-hijacker ] || [ ! -f strip-hijacker$exe_ext ]; then
 fi
 
 if [ ! -f installed-strip-hijacker ]; then
+	echo "install strip-hijacker"
 	hijack strip strip-hijacker$exe_ext strip-hijacker
 	touch installed-strip-hijacker
 fi
 #---------------------------------------------------------------------------------
-# build and install GMP if needed
+# build and install GMP
 #---------------------------------------------------------------------------------
 
 if [ -d $srcdir/$GMP_SRC ]; then
@@ -241,6 +250,16 @@ if [ -d $srcdir/$MPC_SRC ]; then
 fi
 
 #---------------------------------------------------------------------------------
+# create sysroot folder
+#---------------------------------------------------------------------------------
+echo "create sysroot dirs"
+mkdir -p $prefix/$target/sysroot/lib
+mkdir -p $prefix/$target/sysroot/usr/include
+mkdir -p $prefix/$target/sysroot/usr/lib
+mkdir -p $prefix/$target/sysroot/usr/local/include
+mkdir -p $prefix/$target/sysroot/usr/local/lib
+
+#---------------------------------------------------------------------------------
 # build and install just the c compiler
 #---------------------------------------------------------------------------------
 cd $rootdir
@@ -248,26 +267,25 @@ mkdir -p $builddir/gcc && cd $builddir/gcc || { echo "Can't change dir to $build
 
 if [ ! -f configured-gcc ]; then
 	rm -fr *
-#	CFLAGS="$cflags" LDFLAGS="$ldflags -static" CFLAGS_FOR_TARGET="-O2" LDFLAGS_FOR_TARGET="" \
-#		../../../gcc-working/configure \
 	# can't use  -fomit-frame-pointer --> complile error on Coldfire with -mshort ???
-	CFLAGS="$cflags" LDFLAGS="$ldflags -static" CFLAGS_FOR_TARGET="-O2" LDFLAGS_FOR_TARGET="" \
+	CFLAGS="$cflags" LDFLAGS="$ldflags -static" CFLAGS_FOR_TARGET="-g -O2 -ffunction-sections -fdata-sections" CXXFLAGS_FOR_TARGET="-g -O2 -ffunction-sections -fdata-sections" LDFLAGS_FOR_TARGET="" \
 		../../src/$GCC_SRC/configure \
 		--enable-languages=c,c++,objc \
-		--enable-interwork --enable-multilib\
+		--enable-interwork --enable-multilib \
+		--with-sysroot=$prefix/$target/sysroot \
 		--with-gcc --with-gnu-ld --with-gnu-as \
 		--disable-dependency-tracking \
-		--disable-shared --disable-threads --disable-win32-registry --disable-nls --disable-debug\
+		--disable-shared --enable-threads=posix --disable-win32-registry --disable-nls --disable-debug\
 		--disable-libssp --disable-libgomp \
 		--disable-libstdcxx-pch \
 		--disable-initfini-array \
 		--target=$target \
-		--prefix=$prefix\
+		--prefix=$prefix \
 		--enable-lto $plugin_ld\
 		$with_gmp \
 		$with_mpfr \
 		$with_mpc \
-		--with-bugurl="http://code.google.com/p/m68k-atari-mint-elf/issues/list" --with-pkgversion="devkitMINT release 2" || { echo "Error configuring gcc"; exit 1; }
+		--with-bugurl="http://code.google.com/p/m68k-atari-mint-elf/issues/list" --with-pkgversion="devkitMINT by ardi release 3" || { echo "Error configuring gcc"; exit 1; }
 	touch configured-gcc
 fi
 
@@ -283,7 +301,25 @@ if [ ! -f installed-gcc-stage1 ]; then
 #  rm -fr $prefix/$target/sys-include
 fi
 
+#---------------------------------------------------------------------------------
+# install mintlib header
+#---------------------------------------------------------------------------------
+cd $srcdir/$MINTLIB_SRC || { echo "Can't change dir to $srcdir/$MINTLIB_SRC"; exit 1; }
+
+if [ ! -f install-header-mintlib ]; then
+	$MAKE CROSS=yes prefix=/c/mint-elf/m68k-atari-mint-elf-8.1.0/devkitMINT/devkitMINT/m68k-atari-mint install-include-recursive || { echo "Error Can't install mintlib header"; exit 1; }
+	cd include
+	$MAKE CROSS=yes prefix=/c/mint-elf/m68k-atari-mint-elf-8.1.0/devkitMINT/devkitMINT/m68k-atari-mint install-include-recursive || { echo "Error Can't install mintlib header"; exit 1; }
+	cd ..
+	touch install-header-mintlib
+fi
+
+#---------------------------------------------------------------------------------
 # now build libgcc because needed by mintlib for building zic etc.
+#---------------------------------------------------------------------------------
+
+cd $builddir/gcc || { echo "Can't change dir to $builddir/gcc"; exit 1; }
+
 if [ ! -f build-libgcc ]; then
 	rm -f installed-libgcc
 	$MAKE all-target-libgcc || { echo "Error building libgcc"; exit 1; }
@@ -300,10 +336,14 @@ unset CFLAGS
 #---------------------------------------------------------------------------------
 cd $srcdir/$MINTLIB_SRC
 
-if [ ! -f fixup-icludepath ]; then
+if [ ! -f includepath ]; then
 	$MAKE -C lib CROSS=yes ../includepath || { echo "Error fixup includepath"; exit 1; }
 	cat includepath | sed -r -e 's/\\/\//g' -e 's/^([^:]+):/\/\1/' > includepath.sed && mv -f includepath.sed includepath || { echo "Error fixup includepath"; exit 1; }
-	touch fixup-icludepath
+fi
+
+if [ ! -f build-mintlib ]; then
+	$MAKE CFLAGS="-O2 -std=gnu89 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-nonnull-compare" CROSS=yes prefix=$prefix/$target || { echo "Error building mintlib"; exit 1; }
+	touch build-mintlib
 fi
 
 if [ ! -f installed-mintlib ]; then
@@ -312,6 +352,8 @@ if [ ! -f installed-mintlib ]; then
 fi
 
 if [ ! -f installed-crt0-mcpu-5475 ]; then
+# we can't link m68k object files with coldfire object files
+# we need an extra crt0.c for coldfire
 	echo "install crt0.o for mcpu=5475"
 	$target-gcc -c startup/crt0.S -mcpu=5475 -o $prefix/$target/lib/m5475/crt0.o && $target-gcc -mcpu=5475 -DGCRT0 -c startup/crt0.S -o $prefix/$target/lib/m5475/gcrt0.o || { echo "Error installing crt0.o for mcpu=5475"; exit 1; }
 	touch installed-crt0-mcpu-5475
@@ -342,6 +384,7 @@ if [ ! -f installed-libcmini ]; then
 fi
 fi
 
+if [ 1 -eq 0 ]; then
 #---------------------------------------------------------------------------------
 # build and install portable math lib
 #---------------------------------------------------------------------------------
@@ -368,14 +411,21 @@ if [ ! -f installed-pml ]; then
 	fi
 	touch installed-pml
 fi
+fi
 
-if [ 0 -ne 0 ]; then
-	cd $rootdir
-	mkdir -p $builddir/fdlibm && cd $builddir/fdlibm || { echo "Can't change dir to $builddir/fdlibm"; exit 1; }
 
-# RANLIB=m68k-atari-mint-ranlib CC=m68k-atari-mint-gcc AR=m68k-atari-mint-ar ../../src/$FDLIBM_SRC/configure --prefix=$prefix/$target
-#
-
+#---------------------------------------------------------------------------------
+# build and install fdlibm
+#---------------------------------------------------------------------------------
+cd $srcdir/$FDLIBM_SRC || { echo "Can't change dir to $srcdir/$FDLIBM_SRC"; exit 1; }
+if [ ! -f build-fdlibm ]; then
+	CC=m68k-atari-mint-gcc AR=m68k-atari-mint-ar RANLIB=m68k-atari-mint-ranlib ./configure --prefix=$prefix/$target || { echo "Can't configure fdlibm"; exit 1; }
+	$MAKE CROSS=yes || { echo "Can't build fdlibm"; exit 1; }
+	touch build-fdlibm
+fi
+if [ ! -f install-fdlibm ]; then
+	$MAKE install || { echo "Can't install fdlibm"; exit 1; }
+	touch install-fdlibm
 fi
 
 #---------------------------------------------------------------------------------
@@ -390,7 +440,7 @@ if [ ! -f installed-gemlib ]; then
 	# hotfix
 	sed_i "s:mt_event_mouse:mt_evnt_mouse:g" gemlib/gem.h
 
-	$MAKE OPTS="-O2" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
+	$MAKE OPTS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections" WARN="-Wall -Wextra -Wno-strict-aliasing" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
 	touch installed-gemlib
 fi
 
@@ -401,13 +451,12 @@ fi
 cd $builddir/gcc
 
 if [ ! -f build-gcc-stage2 ]; then
-	rm -v installed-gcc-stage2 # force install
+	rm -f installed-gcc-stage2 # force install
 	$MAKE all || { echo "Error building gcc stage2"; exit 1; }
 	touch build-gcc-stage2
 fi
 
-if [ ! -f installed-gcc-stage2 ]
-then
+if [ ! -f installed-gcc-stage2 ]; then
 	$MAKE install || { echo "Error installing gcc stage2"; exit 1; }
 	touch installed-gcc-stage2
 fi
@@ -424,6 +473,7 @@ if [ ! -f installed-bin2s ]; then
 	$cmd || { echo "Error installing bin2s"; exit 1; }
 	touch installed-bin2s
 fi
+exit
 
 if [ ! -f installed-crt0_slb ]; then
 	echo "install crt0.slb.o"

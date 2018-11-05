@@ -1,25 +1,28 @@
-Index: include/mint/cookie.h
+Index: include/bits/sched.h
 ===================================================================
---- include/mint/cookie.h	(Revision 3)
-+++ include/mint/cookie.h	(Arbeitskopie)
-@@ -631,6 +631,14 @@
- #define C_FOUND		0
- #define C_NOTFOUND	-1	/* EERROR */
- 
-+#ifndef _FEATURES_H
-+# include <features.h>
-+#endif
-+
-+__BEGIN_DECLS
-+
- extern int 	Getcookie(long cookie, long *val);
- 
-+__END_DECLS
-+
+--- include/bits/sched.h	(Revision 4)
++++ include/bits/sched.h	(Arbeitskopie)
+@@ -21,8 +21,9 @@
+ #ifndef _SCHED_H
+ # error "Never include <bits/sched.h> directly; use <sched.h> instead."
  #endif
++#ifndef _BITS_SHED_H
++#define _BITS_SHED_H
+ 
+-
+ /* Scheduling algorithms.  */
+ #define SCHED_OTHER	0
+ #define SCHED_FIFO	1
+@@ -33,3 +34,6 @@
+ {
+   int __sched_priority;
+ };
++#define __sched_param sched_param
++
++#endif /* _BITS_SHED_H */
 Index: include/stdlib.h
 ===================================================================
---- include/stdlib.h	(Revision 3)
+--- include/stdlib.h	(Revision 4)
 +++ include/stdlib.h	(Arbeitskopie)
 @@ -81,7 +81,7 @@
  extern double strtod (__const char *__restrict __nptr,
@@ -39,3 +42,319 @@ Index: include/stdlib.h
  
  /* Convert a string to a long integer.  */
  extern long int strtol (__const char *__restrict __nptr,
+Index: login/login.c
+===================================================================
+--- login/login.c	(Revision 4)
++++ login/login.c	(Arbeitskopie)
+@@ -111,7 +111,7 @@
+       ttyp = basename (tty);
+ 
+       /* Position to record for this tty.  */
+-      strncpy (copy.ut_line, ttyp, UT_LINESIZE);
++      strlcpy (copy.ut_line, ttyp, UT_LINESIZE);
+ 
+       /* Tell that we want to use the UTMP file.  */
+       if (utmpname (_PATH_UTMP) == 0)
+Index: login/logout.c
+===================================================================
+--- login/logout.c	(Revision 4)
++++ login/logout.c	(Arbeitskopie)
+@@ -44,7 +44,7 @@
+ #if _HAVE_UT_TYPE - 0
+   tmp.ut_type = USER_PROCESS;
+ #endif
+-  strncpy (tmp.ut_line, line, sizeof tmp.ut_line);
++  strlcpy (tmp.ut_line, line, sizeof tmp.ut_line);
+ 
+   /* Read the record.  */
+   if (getutline_r (&tmp, &utbuf, &ut) >= 0)
+Index: login/logwtmp.c
+===================================================================
+--- login/logwtmp.c	(Revision 4)
++++ login/logwtmp.c	(Arbeitskopie)
+@@ -41,10 +41,10 @@
+ #if _HAVE_UT_TYPE - 0
+   ut.ut_type = name[0] ? USER_PROCESS : DEAD_PROCESS;
+ #endif
+-  strncpy (ut.ut_line, line, sizeof ut.ut_line);
+-  strncpy (ut.ut_name, name, sizeof ut.ut_name);
++  strlcpy (ut.ut_line, line, sizeof ut.ut_line);
++  strlcpy (ut.ut_name, name, sizeof ut.ut_name);
+ #if _HAVE_UT_HOST - 0
+-  strncpy (ut.ut_host, host, sizeof ut.ut_host);
++  strlcpy (ut.ut_host, host, sizeof ut.ut_host);
+ #endif
+ 
+ #if _HAVE_UT_TV - 0
+Index: login/oldutmp.c
+===================================================================
+--- login/oldutmp.c	(Revision 4)
++++ login/oldutmp.c	(Arbeitskopie)
+@@ -57,9 +57,9 @@
+ 	printf("counter = %d\nline = %s\nname = %s\nhost = %s\ntime = %lu\n",
+ 		counter, line, name, host, time);
+ #endif
+-	strncpy(entry.ut_line, line, 8);
+-	strncpy(entry.ut_name, name, 8);
+-	strncpy(entry.ut_host, host, 16);
++	strlcpy(entry.ut_line, line, 8);
++	strlcpy(entry.ut_name, name, 8);
++	strlcpy(entry.ut_host, host, 16);
+ 	entry.ut_time = time;
+ 
+ 	if ((returned_val = write(fd, &entry, (unsigned) sizeof(struct utmp))) == -1)
+Index: login/oldwtmp.c
+===================================================================
+--- login/oldwtmp.c	(Revision 4)
++++ login/oldwtmp.c	(Arbeitskopie)
+@@ -34,9 +34,9 @@
+  * bytes strncpy adds the the strings if they are greater than 8/16 bytes!
+  */
+ 
+-	strncpy(entry.ut_line, line, 8);
+-	strncpy(entry.ut_name, name, 8);
+-	strncpy(entry.ut_host, host, 16);
++	strlcpy(entry.ut_line, line, 8);
++	strlcpy(entry.ut_name, name, 8);
++	strlcpy(entry.ut_host, host, 16);
+ 	entry.ut_time = time;
+ 
+ 	write(fd, &entry, (unsigned) sizeof(struct utmp));
+Index: mintlib/EXTRAFILES
+===================================================================
+--- mintlib/EXTRAFILES	(Revision 4)
++++ mintlib/EXTRAFILES	(Arbeitskopie)
+@@ -11,6 +11,7 @@
+ _itoa.h math_private.h math_ldbl.h atomicity.h atomicity-68020.h errbase.h \
+ gensys stksiz.h sysdep.h lib.h libc-symbols.h \
+ machine-gmon.h memcopy.h profil-counter.h malloc_int.h \
++spin_lock.h \
+ syscalls.h syscalls.list test-assert-perr.c test-assert.c test-atexit.c \
+ test-atexit.expect test-ctype.c test-ctype1.c test-ctype1.expect \
+ test-dirent.args test-dirent.c test-mallocbug.c test-seekdir.c test-setjmp.c \
+Index: mintlib/iflink.c
+===================================================================
+--- mintlib/iflink.c	(Revision 4)
++++ mintlib/iflink.c	(Arbeitskopie)
+@@ -34,7 +34,7 @@
+ 		return -1;
+ 	}
+ 	_unx2dos (device, ifl.device, PATH_MAX);
+-	strncpy (ifl.ifname, ifname, sizeof (ifl.ifname));
++	strlcpy (ifl.ifname, ifname, sizeof (ifl.ifname));
+ 	r = ioctl (sockfd, SIOCSIFLINK, &ifl);
+ 	if (r < 0) {
+ 		close (sockfd);
+@@ -41,7 +41,7 @@
+ 		return -1;
+ 	}
+ 	close (sockfd);
+-	strncpy (ifname, ifl.ifname, sizeof (ifl.ifname));
++	strlcpy (ifname, ifl.ifname, sizeof (ifl.ifname));
+ 	return 0;
+ }
+ 
+Index: mintlib/m68k_tp.c
+===================================================================
+--- mintlib/m68k_tp.c	(nicht existent)
++++ mintlib/m68k_tp.c	(Arbeitskopie)
+@@ -0,0 +1,26 @@
++#include <compiler.h>
++#include <stddef.h>	/* for size_t */
++#include <stdlib.h>
++#include <memory.h>
++#include <string.h>
++#include <assert.h>
++#include <unistd.h>
++#include <osbind.h>
++#include "lib.h"
++
++void *
++___m68k_read_tp() {
++
++
++}
++
++weak_alias (___m68k_read_tp, __m68k_read_tp)
++
++//__dl_deallocate_tls
++void
++___m68k_write_tp(void * tp) {
++
++
++}
++
++weak_alias (___m68k_write_tp, __m68k_write_tp)
+Index: mintlib/malloc.c
+===================================================================
+--- mintlib/malloc.c	(Revision 4)
++++ mintlib/malloc.c	(Arbeitskopie)
+@@ -12,11 +12,11 @@
+ #include <string.h>
+ #include <assert.h>
+ #include <unistd.h>
+-#include <osbind.h>
++#include <mintbind.h>
+ #include "lib.h"
+ #include "malloc_int.h"
++#include "spin_lock.h"
+ 
+-
+ /* CAUTION: use _mallocChunkSize() to tailor to your environment,
+  *          do not make the default too large, as the compiler
+  *          gets screwed on a 1M machine otherwise (stack/heap clash)
+@@ -39,7 +39,14 @@
+ /* linked list of free blocks struct defined in lib.h */
+ struct mem_chunk _mchunk_free_list = { VAL_FREE, NULL, 0L };
+ 
++/* threads shares the memory. ergo each thread can use malloc
++   to make malloc thread safe we use a simple spin-lock        */
++_SPIN_MUTEX_T __malloc_mutex = _SPIN_MUTEX_INIT;
+ 
++#define MALLOC_SPIN_LOCK() while(__atomic_test_and_set(&__malloc_mutex, __ATOMIC_SEQ_CST)) Syield()
++#define MALLOC_SPIN_UNLOCK()  do { __malloc_mutex = 0; } while(0)
++
++
+ void *
+ __malloc(size_t n)
+ {
+@@ -46,6 +53,8 @@
+ 	struct mem_chunk *p, *q;
+ 	unsigned long sz;
+ 
++	_SPIN_LOCK(__malloc_mutex);
++
+ 	/* add a mem_chunk to required size and round up */
+ 	n = (n + sizeof(struct mem_chunk) + (MALLOC_ALIGNMENT - 1)) & ~(MALLOC_ALIGNMENT - 1);
+ 
+@@ -85,8 +94,10 @@
+ 		}
+ 
+ 		q = (struct mem_chunk * ) __sbrk(sz);
+-		if (((long) q) == -1) /* can't alloc any more? */
++		if (((long) q) == -1) { /* can't alloc any more? */
++			_SPIN_UNLOCK(__malloc_mutex);
+ 			return NULL;
++		}
+ 
+ 		/* Note: q may be below the highest allocated chunk */
+ 		p = &_mchunk_free_list;
+@@ -132,6 +143,8 @@
+ 	q->next = NULL;	
+ 	q++; /* hand back ptr to after chunk desc */
+ 
++	_SPIN_UNLOCK(__malloc_mutex);
++
+ 	if (ZeroMallocs)
+ 		memset(q, 0, (size_t)(n - sizeof(struct mem_chunk)));
+ 
+@@ -157,6 +170,8 @@
+ 
+ 	r->valid = VAL_FREE;
+ 
++	_SPIN_LOCK(__malloc_mutex);
++
+ 	/* stick it into free list, preserving ascending address order */
+ 	o = NULL;
+ 	p = &_mchunk_free_list;
+@@ -197,6 +212,7 @@
+ 			else
+ 				p->next = r;
+ 
++			_SPIN_UNLOCK(__malloc_mutex);
+ 			return;
+ 		}
+ 
+@@ -234,7 +250,7 @@
+ 		}
+ 	}
+ 	else
+-        {
++	{
+ 		s = (struct mem_chunk * )(((long) r) + r->size);
+ 		if ((!_split_mem) && _heapbase != NULL &&
+ 		    s >= (struct mem_chunk *) _heapbase &&
+@@ -250,5 +266,6 @@
+ 		else
+ 			p->next = r;
+ 	}
++	_SPIN_UNLOCK(__malloc_mutex);
+ }
+ weak_alias(__free, free)
+Index: mintlib/realloc.c
+===================================================================
+--- mintlib/realloc.c	(Revision 4)
++++ mintlib/realloc.c	(Arbeitskopie)
+@@ -9,10 +9,16 @@
+ #include <string.h>
+ #include <assert.h>
+ #include <unistd.h>
++#include <mintbind.h> // for Syield
+ #include "lib.h"
+ #include "malloc_int.h"
++#include "spin_lock.h"
+ 
++/* threads shares the memory. ergo each thread can use malloc
++   to make malloc thread safe we use a simple spin-lock        */
++extern _SPIN_MUTEX_T __malloc_mutex;
+ 
++
+ void *
+ __realloc (void *r, size_t n)
+ {
+@@ -58,6 +64,8 @@
+ 		/* block too small, get new one */
+ 		struct mem_chunk *q, *s, *t;
+ 
++		_SPIN_LOCK(__malloc_mutex);
++
+ 		q = &_mchunk_free_list;
+ 		t = _mchunk_free_list.next;
+ 		while (t && t < p)
+@@ -77,11 +85,16 @@
+ 			q->next = t->next;
+ 			t->size = 0;
+ 			t->next = NULL;
++
++			_SPIN_UNLOCK(__malloc_mutex);
++
+ 		}
+ 		else
+ 		{
+ 			void *newr;
+ 
++			_SPIN_UNLOCK(__malloc_mutex);
++
+ 			newr = __malloc(n);
+ 			if (newr)
+ 			{
+Index: mintlib/spin_lock.h
+===================================================================
+--- mintlib/spin_lock.h	(nicht existent)
++++ mintlib/spin_lock.h	(Arbeitskopie)
+@@ -0,0 +1,13 @@
++/*
++ * spin_lock
++ */
++#ifndef _SPIN_LOCK_H
++#define _SPIN_LOCK_H
++
++#define _SPIN_MUTEX_T char
++#define _SPIN_MUTEX_INIT (0)
++#define _SPIN_LOCK(SPIN_MUTEX) while(__atomic_test_and_set(&SPIN_MUTEX, __ATOMIC_SEQ_CST)) Syield()
++#define _SPIN_UNLOCK(SPIN_MUTEX)  do { SPIN_MUTEX = 0; } while(0)
++
++
++#endif /* _SPIN_LOCK_H */
+Index: mintlib/SRCFILES
+===================================================================
+--- mintlib/SRCFILES	(Revision 4)
++++ mintlib/SRCFILES	(Arbeitskopie)
+@@ -61,6 +61,7 @@
+ 	localeconv.c \
+ 	lockf.c \
+ 	ltoa.c \
++	m68k_tp.c \
+ 	main.c \
+ 	malloc.c \
+ 	mcount.c \

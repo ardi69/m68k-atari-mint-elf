@@ -235,6 +235,8 @@ typedef struct {
 } Elf32_Sym;
 
 #define PT_LOAD	1
+#define PT_TLS	7
+
 #define PF_R	4
 #define PF_W	2
 #define PF_X	1
@@ -427,13 +429,24 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	uint32_t phoff = swap32(ehdr.e_phoff);
 
 	if(!phnum || !phoff)
-		die("ELF has no program headers");
-	if(phnum > 1)
-		die("ELF has more as one program header");
+		die("ELF has no program header");
 
 	if(swap16(ehdr.e_phentsize) != sizeof(Elf32_Phdr))
 		die("Invalid program header entry size");
 
+	if(phnum > 1) {
+		uint32_t p_type_2;
+		// seek to Phdr[1]
+		if(fseek(map->elf, phoff + sizeof(Elf32_Phdr), SEEK_SET) < 0)
+			ferrordie(map->elf, "reading ELF program headers");
+		// read Elf32_Phdr.p_type
+		read = fread(&p_type_2, sizeof(p_type_2), 1, map->elf);
+		if(read != 1)
+			ferrordie(map->elf, "reading ELF program headers");
+
+		if(phnum != 2 || swap32(p_type_2) != PT_TLS)
+			die("ELF has more as one program header");
+	}
 	if(fseek(map->elf, phoff, SEEK_SET) < 0)
 		ferrordie(map->elf, "reading ELF program headers");
 	read = fread(&phdr, sizeof(Elf32_Phdr), 1, map->elf);
@@ -593,62 +606,77 @@ void read_elf_segments(TOS_map *map, const char *elf)
 				{
 					uint32_t r_type = ELF32_R_TYPE(swap32(tmp_relas[j].r_info));
 					uint32_t r_offset = swap32(tmp_relas[j].r_offset);
+					int32_t r_addend = swap32(tmp_relas[j].r_addend);
 					uint32_t r_sym = ELF32_R_SYM(swap32(tmp_relas[j].r_info));
 					Elf32_Sym *sym = syms ? &syms[r_sym] : NULL;
 					const char *sym_name = (sym && sym_names) ? &sym_names[swap32(sym->st_name)] : "";
-					if (r_type == R_68K_32) {
-						uint32_t use_rela = 1;
-						if(r_offset & 1) {
-							error = 1;
-							fprintf(stderr, "Error: rela an odd position detected (not supported by atari/mint) offset = %#x symbol = %s in %s\n", r_offset, sym_name, s_name);
-						}
-						if(sym && tmp_relas[j].r_addend == 0) {
-							if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
-								/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
-								if(fseek(map->elf, map->program_off + r_offset, SEEK_SET) < 0)
-									ferrordie(map->elf, "reading unrefernced weak");
-								if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
-									ferrordie(map->elf, "reading unrefernced weak");
-								if(!use_rela && verbosity >=2)
-									fprintf(stderr, "ignore relocation for unreferenced week symbol %s @0x%X\n", sym_name, r_offset);
+					switch (r_type) {
+					case R_68K_32:
+						{
+							uint32_t use_rela = 1;
+							if(r_offset & 1) {
+								error = 1;
+								fprintf(stderr, "Error: rela an odd position detected (not supported by atari/mint) offset = %#x symbol = %s in %s\n", r_offset, sym_name, s_name);
 							}
+							if(sym && tmp_relas[j].r_addend == 0) {
+								if(ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
+									/* ignore relas for unrefernced weak symbols e.g. empty slb_export slots */
+									if(fseek(map->elf, map->program_off + r_offset, SEEK_SET) < 0)
+										ferrordie(map->elf, "reading unrefernced weak");
+									if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
+										ferrordie(map->elf, "reading unrefernced weak");
+									if(!use_rela && verbosity >=2)
+										fprintf(stderr, "Warning: ignore relocation for unreferenced week symbol %s @0x%X\n", sym_name, r_offset);
+								}
+							}
+							if(use_rela)
+								*rela_end++ = r_offset;
 						}
-						if(use_rela)
-							*rela_end++ = r_offset;
-					} else if(r_type != R_68K_NONE && r_type != R_68K_PC32 && r_type != R_68K_PC16 && r_type != R_68K_PC8) {
-						fprintf(stderr, "Warning: got unexpected relocation type %s (offset=%#X%s%s) - left unhandled\n", elf_m68k_reloc_name(r_type), r_offset, *sym_name ? "; sym=":"", sym_name);
+						break;
+					case R_68K_NONE:
+					case R_68K_PC32: case R_68K_PC16: case R_68K_PC8:
+					case R_68K_TLS_LE32: case R_68K_TLS_LE16: case R_68K_TLS_LE8:
+					case R_68K_TLS_IE32: case R_68K_TLS_IE16: case R_68K_TLS_IE8:
+					case R_68K_GOT32: case R_68K_GOT16: case R_68K_GOT8:
+						break;
+					default:
+						fprintf(stderr, "Warning: got unexpected relocation type %s (offset=%#X; addend=%#X%s%s) - left unhandled\n", elf_m68k_reloc_name(r_type), r_offset, r_addend, *sym_name ? "; sym=":"", sym_name);
 					}
 				}
 				free(tmp_relas);
 			}
 		}
 		if(error) exit(1);
-		rela_count = rela_end-rela_start;
-		qsort(rela_start, rela_count, sizeof(uint32_t), rela_cmp);
-		uint32_t bytes = 4; /* First entry is a long.  */
-		for (i = 1; i < rela_count; i++) {
-			uint32_t diff = rela_start[i] - rela_start[i - 1];
-			bytes += (diff + 253) / 254;
+		uint32_t bytes = 0;
+		rela_count = rela_end - rela_start;
+		if (rela_count) {
+			qsort(rela_start, rela_count, sizeof(uint32_t), rela_cmp);
+			bytes = 4; /* First entry is a long.  */
+			for (i = 1; i < rela_count; i++) {
+				uint32_t diff = rela_start[i] - rela_start[i - 1];
+				bytes += (diff + 253) / 254;
+			}
+			bytes++; /* Last entry is (byte) 0 if there are some relocations.  */
 		}
-		bytes++; /* Last entry is (byte) 0 if there are some relocations.  */
 		uint8_t *ptr;
 		map->rela_size = bytes;
-		if((map->relas = ptr = (uint8_t*)malloc(bytes))==0)
-			die("failed to allocate memory\n");
-		/* Now fill the array.  */
-		*((uint32_t*)ptr) = swap32(rela_start[0]);
-		ptr += 4;
-		for (i = 1; i < rela_count; i++) {
-			uint32_t diff = rela_start[i] - rela_start[i - 1];
-			while (diff > 254) {
-				*ptr++ = 1;
-				diff -= 254;
+		if (bytes) {
+			if ((map->relas = ptr = (uint8_t*)malloc(bytes)) == 0)
+				die("failed to allocate memory\n");
+			/* Now fill the array.  */
+			*((uint32_t*)ptr) = swap32(rela_start[0]);
+			ptr += 4;
+			for (i = 1; i < rela_count; i++) {
+				uint32_t diff = rela_start[i] - rela_start[i - 1];
+				while (diff > 254) {
+					*ptr++ = 1;
+					diff -= 254;
+				}
+				*ptr++ = (uint8_t)diff;
 			}
-			*ptr++ = (uint8_t) diff;
+			*ptr = 0;
 		}
-		*ptr = 0;
 	}
-
 }
 
 
@@ -706,6 +734,10 @@ void write_tos(TOS_map *map, const char *tos)
 		prg_flags |= _MINT_F_BESTFIT;
 	}
 	map->header.ph_prgflags = swap32(prg_flags);
+#ifndef ALWAYS_RELAS
+	if (map->rela_size == 0)
+		map->header.ph_absflag = swap16(1);
+#endif
 	written = fwrite(&map->header, sizeof(TOS_hdr), 1, tosf);
 	if(written != 1)
 		ferrordie(tosf, "writing TOS header");
@@ -716,6 +748,7 @@ void write_tos(TOS_map *map, const char *tos)
 
 	if(verbosity >= 2)
 		fprintf(stderr, "writing tpa relocation ...\n");
+#ifdef ALWAYS_RELAS
 	uint32_t dummy=0;
 	uint8_t *relas = (uint8_t*)&dummy;
 	uint32_t rela_size = 4;
@@ -724,8 +757,23 @@ void write_tos(TOS_map *map, const char *tos)
 		rela_size = map->rela_size;
 	}
 	written = fwrite(relas, rela_size, 1, tosf);
-	if(written != 1)
+	if (written != 1)
 		ferrordie(tosf, "writing tpa relocation");
+#else
+	if (map->relas && map->rela_size) {
+		written = fwrite(map->relas, map->rela_size, 1, tosf);
+		if (written != 1)
+			ferrordie(tosf, "writing tpa relocation");
+	}
+#endif
+
+	if(map->have_ext_program_header && map->have_ext_program_header != 0xE4) {
+		uint32_t val = swap32(map->have_ext_program_header);
+		if(fseek(tosf, 0x1c + 0x1c, SEEK_SET) < 0)
+			ferrordie(tosf, "fixing entry point");
+		if(fwrite(&val, sizeof(uint32_t), 1, tosf) != 1)
+			ferrordie(tosf, "fixing entry point");
+	}
 
 	if(map->is_slb && map->slb_version_pos) {
 		uint32_t val;

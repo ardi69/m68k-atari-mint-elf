@@ -1,4 +1,7 @@
 #!/bin/bash
+
+{ { { {
+
 #---------------------------------------------------------------------------------
 # Build script for
 #	devkitMINT release 1
@@ -63,8 +66,8 @@ target=m68k-atari-mint
 toolchain=DEVKITMINT
 
 
-BINUTILS_VER=2.27
-BINUTILS_ARC="binutils-$BINUTILS_VER.tar.bz2"
+BINUTILS_VER=2.30
+BINUTILS_ARC="binutils-$BINUTILS_VER.tar.gz"
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/$BINUTILS_ARC"
 BINUTILS_SRC="binutils-$BINUTILS_VER"
 
@@ -73,18 +76,18 @@ GMP_ARC=$(echo "#include <gmp.h>" | gcc -E - &> /dev/null || echo "gmp-$GMP_VER.
 GMP_URL="https://ftp.gnu.org/gnu/gmp/$GMP_ARC"
 GMP_SRC="gmp-$GMP_VER"
 
-MPFR_VER=3.1.5
+MPFR_VER=4.0.1
 MPFR_ARC=$(echo -e "#define __MPFR_H\n#include <mpfr.h>" | gcc -E - &> /dev/null || echo "mpfr-$MPFR_VER.tar.bz2")
 MPFR_URL="https://ftp.gnu.org/gnu/mpfr/$MPFR_ARC"
 MPFR_SRC="mpfr-$MPFR_VER"
 
-MPC_VER=1.0.3
+MPC_VER=1.1.0
 MPC_ARC=$(echo -e "#define __MPC_H\n#include <mpc.h>" | gcc -E - &> /dev/null || echo "mpc-$MPC_VER.tar.gz")
 MPC_URL="https://ftp.gnu.org/gnu/mpc/$MPC_ARC"
 MPC_SRC="mpc-$MPC_VER"
 
-GCC_VER=4.9.4
-GCC_ARC="gcc-$GCC_VER.tar.bz2"
+GCC_VER=8.1.0
+GCC_ARC="gcc-$GCC_VER.tar.gz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VER/$GCC_ARC"
 GCC_SRC="gcc-$GCC_VER"
 
@@ -98,19 +101,29 @@ MINTLIB_ARC="mintlib-$MINTLIB_VER.tar.gz"
 MINTLIB_URL="https://github.com/freemint/mintlib/archive/$MINTLIB_VER.tar.gz"
 MINTLIB_SRC="mintlib-$MINTLIB_VER"
 
+FDLIBM_VER="a159b62fc20f3ff5f1a268a4870aaf117d9c17d1"
+FDLIBM_ARC="fdlibm-$FDLIBM_VER.tar.gz"
+FDLIBM_URL="https://github.com/freemint/fdlibm/archive/$FDLIBM_VER.tar.gz"
+FDLIBM_SRC="fdlibm-$FDLIBM_VER"
+
+LIBCMINI_VER="0.47"
+LIBCMINI_ARC="libcmini-$LIBCMINI_VER.tar.gz"
+LIBCMINI_URL="https://github.com/mfro0/libcmini/archive/v$LIBCMINI_VER.tar.gz"
+LIBCMINI_SRC="libcmini-$LIBCMINI_VER"
+
 PMLLIB_VER="2.03"
 PMLLIB_ARC="pml-$PMLLIB_VER.tar.bz2"
 PMLLIB_URL=
 PMLLIB_SRC="pml-$PMLLIB_VER"
 
-GEMLIB_VER="master"
+GEMLIB_VER="b3f84206c2e05d7a589ee5d90bcf4eb1601887c2"
 #GEMLIB_VER="6df3f962ff80c674443a0bc0335fc0c6a56b6598" # 0_44_0
 GEMLIB_ARC="gemlib-$GEMLIB_VER.tar.gz"
 GEMLIB_URL="https://github.com/freemint/lib/archive/$GEMLIB_VER.tar.gz"
 GEMLIB_SRC="lib-$GEMLIB_VER"
 
 
-PACKAGE_LIST="BINUTILS GMP MPFR MPC GCC GDB MINTLIB PMLLIB GEMLIB"
+PACKAGE_LIST="BINUTILS GMP MPFR MPC GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
 
 
 #---------------------------------------------------------------------------------
@@ -143,8 +156,8 @@ function download() {
 	if [ ! -f $file ]; then
 		[ -z $url ] && echo "no URL for $file. Download and store to `pwd`" && exit 1
 		if [ -z "$FETCH" ]; then
-			if [ -z "$FETCH" -a -x "$(which wget)" ]; then FETCH="$(which wget) --no-check-certificate -O"; fi
-			if [ -z "$FETCH" -a -x "$(which curl)" ]; then FETCH="$(which curl) -k -f -L -o"; fi
+			if [ -z "$FETCH" -a -x "$(which wget 2>/dev/null)" ]; then FETCH="$(which wget 2>dev/null) --no-check-certificate -O"; fi
+			if [ -z "$FETCH" -a -x "$(which curl 2>/dev/null)" ]; then FETCH="$(which curl 2>dev/null) -k -f -L -o"; fi
 			[ -z "$FETCH" ] && { echo "ERROR: Please make sure you have wget or curl installed."; exit 1; }
 		fi
 		rm -f "$file.tmp"
@@ -168,9 +181,10 @@ cd $rootdir
 #---------------------------------------------------------------------------------
 # find proper make
 #---------------------------------------------------------------------------------
-if [ -z "$MAKE" -a -x "$(which gnumake)" ]; then MAKE=$(which gnumake); fi
-if [ -z "$MAKE" -a -x "$(which gmake)" ]; then MAKE=$(which gmake); fi
-if [ -z "$MAKE" -a -x "$(which make)" ]; then MAKE=$(which make); fi
+echo find make
+if [ -z "$MAKE" -a -x "$(which gnumake 2>/dev/null)" ]; then MAKE=$(which gnumake); fi
+if [ -z "$MAKE" -a -x "$(which gmake 2>/dev/null)" ]; then MAKE=$(which gmake); fi
+if [ -z "$MAKE" -a -x "$(which make 2>/dev/null)" ]; then MAKE=$(which make); fi
 if [ -z "$MAKE" ]; then
 	echo no make found
 	exit 1
@@ -178,26 +192,22 @@ fi
 echo use $MAKE as make
 export MAKE
 
+echo find makeinfo
+which makeinfo >/dev/null 2>&1 || { echo "Can't find makinfo. Please Install e.g. pacman -S texinfo"; exit 1; }
+which bison >/dev/null 2>&1 || { echo "Can't find bison. Please Install e.g. pacman -S bison"; exit 1; }
+
 
 #---------------------------------------------------------------------------------
 # find proper gawk
 #---------------------------------------------------------------------------------
-if [ -z "$GAWK" -a -x "$(which gawk)" ]; then GAWK=$(which gawk); fi
-if [ -z "$GAWK" -a -x "$(which awk)" ]; then GAWK=$(which awk); fi
+if [ -z "$GAWK" -a -x "$(which gawk 2>/dev/null)" ]; then GAWK=$(which gawk); fi
+if [ -z "$GAWK" -a -x "$(which awk 2>/dev/null)" ]; then GAWK=$(which awk); fi
 if [ -z "$GAWK" ]; then
 	echo no awk found
 	exit 1
 fi
 echo use $GAWK as gawk
 export GAWK
-
-#---------------------------------------------------------------------------------
-# find makeinfo, needed for newlib
-#---------------------------------------------------------------------------------
-if [ ! -x $(which makeinfo) ]; then
-	echo makeinfo not found
-	exit 1
-fi
 
 #---------------------------------------------------------------------------------
 # Add installed devkit to the path, adjusting path on minsys
@@ -228,7 +238,7 @@ function extract_package() {
 	local patchfile=${1}_PATCH; patchfile=${!patchfile}
 	local patch
 	[ -z $arc ] && return
-	([ -d $src/.git ] || [ -d $src/.svn ]) && echo "found .div or .svn in $src -> extract and patch skipped" && return
+	([ -d $src/.git ] || [ -d $src/.svn ]) && echo "found .git or .svn in $src -> extract and patch skipped" && return
 	if [ ! -f $src/extracted ]; then
 		echo "Extracting $arc"
 		rm -fr $src
@@ -308,7 +318,7 @@ find $INSTALLDIR/$package/$target -name *.a -exec $target-strip -d {} \;
 #---------------------------------------------------------------------------------
 # Clean up temporary files and source directories
 #---------------------------------------------------------------------------------
-
+exit
 if [ "$BUILD_DKMINT_AUTOMATED" != "1" ] ; then
   echo
   echo "Would you like to delete the build folders and patched sources? [Y/n]"
@@ -361,3 +371,5 @@ fi
 echo
 echo "note: Add the following to your environment;  DEVKITPRO=$TOOLPATH $toolchain=$TOOLPATH/$package"
 echo
+
+} 2>&1 1>&3; } | tee build-devkit.err.log; } 3>&1; } | tee build-devkit.log
