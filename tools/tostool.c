@@ -5,7 +5,7 @@
 #include <string.h>
 #pragma pack(push, 1)
 
-#define TOSTOOL_VERSION "0.2.0"
+#define TOSTOOL_VERSION "0.3.0"
 
 
 #ifdef _MSC_VER
@@ -392,7 +392,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	uint32_t e_entry = 0;
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Reading ELF file...\n");
+		fprintf(stdout, "Reading ELF file...\n");
 
 	map->elf = fopen(elf, "rb");
 	if(!map->elf)
@@ -420,7 +420,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 	e_entry = swap32(ehdr.e_entry);
 
 	if(verbosity >= 2)
-		fprintf(stderr, "Valid ELF header found\n");
+		fprintf(stdout, "Valid ELF header found\n");
 
 	//////////////////////////////////////////////////////////////////////////
 	// program header
@@ -594,7 +594,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 			if(swap32(map->shdrs[i].s_type) == SHT_RELA && swap32(map->shdrs[swap32(map->shdrs[i].s_info)].s_flags) & SHF_ALLOC) {
 				char *s_name = &map->shstrtab[swap32(map->shdrs[i].s_name)];
 				uint32_t s_size = swap32(map->shdrs[i].s_size);
-				if(verbosity >=2 ) fprintf(stderr, "search rela's from %s\n", s_name);
+				if(verbosity >=2 ) fprintf(stdout, "search rela's from %s\n", s_name);
 				if((tmp_relas = (Elf32_Rela*)malloc(s_size))==0)
 					die("failed to allocate memory\n");
 				if(fseek(map->elf, swap32(map->shdrs[i].s_offset), SEEK_SET) < 0)
@@ -625,7 +625,7 @@ void read_elf_segments(TOS_map *map, const char *elf)
 										ferrordie(map->elf, "reading unrefernced weak");
 									if(fread(&use_rela, sizeof(uint32_t), 1, map->elf)!=1)
 										ferrordie(map->elf, "reading unrefernced weak");
-									if(!use_rela && verbosity >=2)
+									if(!use_rela && verbosity >=1)
 										fprintf(stderr, "Warning: ignore relocation for unreferenced week symbol %s @0x%X\n", sym_name, r_offset);
 								}
 							}
@@ -721,14 +721,14 @@ void write_tos(TOS_map *map, const char *tos)
 	int written;
 
 	if(verbosity >= 2)
-		fprintf(stderr, "writing TOS file...\n");
+		fprintf(stdout, "writing TOS file...\n");
 
 	tosf = fopen(tos, "w+b");
 	if(!tosf)
 		perrordie("Could not open TOS file");
 
 	if(verbosity >= 2)
-		fprintf(stderr, "writing TOS header ...\n");
+		fprintf(stdout, "writing TOS header ...\n");
 	if(map->is_slb && (prg_flags & _MINT_F_BESTFIT)==0) {
 		fprintf(stderr, "Warning: target is shared library force --best-fit ...\n");
 		prg_flags |= _MINT_F_BESTFIT;
@@ -743,11 +743,11 @@ void write_tos(TOS_map *map, const char *tos)
 		ferrordie(tosf, "writing TOS header");
 
 	if(verbosity >= 2)
-		fprintf(stderr, "writing TEXT & DATA segment ...\n");
+		fprintf(stdout, "writing TEXT & DATA segment ...\n");
 	fcpy(tosf, map->elf, ftell(tosf), map->program_off, map->program_size);
 
 	if(verbosity >= 2)
-		fprintf(stderr, "writing tpa relocation ...\n");
+		fprintf(stdout, "writing tpa relocation ...\n");
 #ifdef ALWAYS_RELAS
 	uint32_t dummy=0;
 	uint8_t *relas = (uint8_t*)&dummy;
@@ -799,7 +799,7 @@ void write_tos(TOS_map *map, const char *tos)
 		if(stack_size) {
 			if(verbosity >= 1) {
 				if(map->stack_size != stack_size)
-					fprintf(stderr, "change stack-size from %i to %i\n", map->stack_size, stack_size);
+					fprintf(stdout, "change stack-size from %i to %i\n", map->stack_size, stack_size);
 			}
 			val = swap32(stack_size);
 			if(fseek(tosf, map->stack_pos+0x1c, SEEK_SET) < 0)
@@ -811,7 +811,7 @@ void write_tos(TOS_map *map, const char *tos)
 		fprintf(stderr, "Warning: symbol '_stksize' not found - ignoring stack size %i\n", stack_size);
 
 	if(verbosity >= 2)
-		fprintf(stderr, "All done!\n");
+		fprintf(stdout, "All done!\n");
 
 	fclose(map->elf);
 	fclose(tosf);
@@ -823,6 +823,7 @@ static inline void set_prg_flags(uint32_t mask, uint32_t value, int no) {
 int main(int argc, char **argv)
 {
 	char **arg;
+	int _argc = argc;
 	if(argc < 2) {
 		usage(argv[0]);
 		return 1;
@@ -846,7 +847,13 @@ int main(int argc, char **argv)
 			have_ld_hijacker = 1;
 		} else if(!strcmp(*arg, "-v")) {
 			verbosity++;
-			if(verbosity == 1) fprintf(stdout, "tostool v" TOSTOOL_VERSION " (c) by ardisoft (Armin Diedering)\n");
+			if(verbosity == 1) {
+				fprintf(stdout, "tostool v" TOSTOOL_VERSION " (c) by ardisoft (Armin Diedering)\n");
+				for(int i=0; i < _argc; ++i)
+					fprintf(stdout, "%s ", argv[i]);
+				fprintf(stdout, "\n");
+				fflush(stdout);
+			}
 		} else if(!strcmp(*arg, "--")) {
 			arg++;
 			argc--;

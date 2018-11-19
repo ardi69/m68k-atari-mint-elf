@@ -12,6 +12,10 @@
 #define A_ELF "a.elf"
 #define A_OUT "a.out"
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+#define LINE_STRING STRINGIZE(__LINE__)
+
 struct {
 	const char *option;
 	enum {
@@ -96,7 +100,7 @@ static void print_environ() {
 #ifdef SHOW_ARGS
 static void print_args(const char *prg, int argc, char *argv[]) {
 	int arg;
-	printf("%s args:\n", prg);
+	printf("%s ", prg);
 	for (arg = 0; arg < argc; ++arg) printf("%s ", argv[arg]);
 	printf("\n");
 }
@@ -109,6 +113,25 @@ static void fatal(const char *msg) {
 	exit(1);
 }
 
+
+static char *getFileExt(char *PathFileName) {
+	char *p = strrchr(PathFileName, '.'); // find last dot
+	if (!strchr(p, '/') // check is dot nont in path
+#ifdef _WIN32
+		&& !strchr(p, '\\')
+#endif
+	) return p;
+	return 0;
+}
+static char *getFileName(char *PathFileName) {
+	char *p = strrchr(PathFileName, '/'); // find last slash
+#ifdef _WIN32
+	if (!p)	p = strrchr(PathFileName, '\\');
+#endif
+	if (p) ++p; // skip slash
+	return p ?: PathFileName;
+}
+
 int main(int argc, char *argv[]) {
 	char **ld_argv, **tostool_argv;
 	int ld_argc = 1, tostool_argc = 1, arg_idx, idx, no, keep_elf = 0, no_tostool = 0, ld_output_idx = 0, help = 0;
@@ -117,14 +140,14 @@ int main(int argc, char *argv[]) {
 
 	print_args("ld-hijacker", argc, argv);
 
-	// allocate argv for ld & tostool - add space of extra args
-	if(!(ld_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory");
-	if(!(tostool_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory");
+	// allocate argv for ld & tostool - add space of 10 extra args
+	if(!(ld_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory @" LINE_STRING);
+	if(!(tostool_argv = (char**)malloc(sizeof(char*)*(argc + 10)))) fatal("out of memory @" LINE_STRING);
 
 	ld_argv[0] = (char*)malloc(strlen(argv[0]) + sizeof(".elf"));
 
-	// prepare ld_argv[0]
-	p = strrchr(argv[0], '.');
+	// prepare ld_argv[0] -> append ".elf" but leaf an optional ".exe" at last
+	p = getFileExt(argv[0]);
 	if (p && !strcasecmp(p, ".exe")) {
 		exe = p;
 		strncpy(ld_argv[0], argv[0], p - argv[0]); ld_argv[0][p - argv[0]] = 0;
@@ -135,49 +158,54 @@ int main(int argc, char *argv[]) {
 		strcat(ld_argv[0], ".elf");
 	}
 
-	// prepare tostool_argv[0]
-	if ((p = strrchr(argv[0], '/'))
-#ifdef _WIN32
-		|| (p = strrchr(argv[0], '\\'))
-#endif
-		) {
-		if(!(tostool_argv[0] = (char*)malloc(1 + (p - argv[0]) + sizeof("tostool") + strlen(exe)))) fatal("out of memory");
-		strncpy(tostool_argv[0], argv[0], 1 + (p - argv[0])); tostool_argv[0][1 + (p - argv[0])] = 0;
+	// prepare tostool_argv[0] -> remove filename from arg[0] and append "tostool" but leaf ".exe"
+	if ((p = getFileName(argv[0]))) {
+		if(!(tostool_argv[0] = (char*)malloc((p - argv[0]) + strlen("tostool") + strlen(exe) + sizeof('\0')))) fatal("out of memory @" LINE_STRING);
+		strncpy(tostool_argv[0], argv[0], (p - argv[0])); tostool_argv[0][p - argv[0]] = 0;
 		strcat(tostool_argv[0], "tostool");
 		strcat(tostool_argv[0], exe);
 	} else {
-		if(!(tostool_argv[0] = (char*)malloc(sizeof("tostool") + strlen(exe)))) fatal("out of memory");
+		if(!(tostool_argv[0] = (char*)malloc(strlen("tostool") + strlen(exe) + sizeof('\0')))) fatal("out of memory@" LINE_STRING);
 		strcpy(tostool_argv[0], "tostool");
 		strcat(tostool_argv[0], exe);
 	}
-	tostool_argv[tostool_argc++] = "--ld-hijacker"; // indicate tostool is invoked by ld-hijacker
 
-	// filter out tostool args
+	// indicate tostool is invoked by ld-hijacker
+	tostool_argv[tostool_argc++] = "--ld-hijacker"; 
+
+	// assign args to ld and/or tostool
 	for (arg_idx = 1; arg_idx < argc; ++arg_idx) {
 		if (!strcmp(argv[arg_idx], "-h")) {
 			ld_argv[ld_argc++] = "--help";
 			tostool_argv[tostool_argc++] = argv[arg_idx];
-			keep_elf = 1;
+			keep_elf = 1;  // ld --help don't output an elf-file -> keep_elf == don't delete elf
 
 		} else if (!strcmp(argv[arg_idx], "-v") || !strcmp(argv[arg_idx], "--gc-sections")) {
-			ld_argv[ld_argc++] = tostool_argv[tostool_argc++] = argv[arg_idx];
+			ld_argv[ld_argc++] = tostool_argv[tostool_argc++] = argv[arg_idx]; // simple pass truth
 
 		} else if (!strcmp(argv[arg_idx], "--help") || !strcmp(argv[arg_idx], "--target-help")) {
 			ld_argv[ld_argc++] = tostool_argv[tostool_argc++] = argv[arg_idx];
-			keep_elf = help = 1;
+			keep_elf = help = 1;  // ld --help don't output an elf-file -> keep_elf == don't delete elf
 
 		} else if (!strcmp(argv[arg_idx], "--strip-all") || !strcmp(argv[arg_idx], "-s")) {
 			// ignore strip-all
 
 		} else if (!strcmp(argv[arg_idx], "--keep-elf")) {
-			keep_elf = 1;
+			keep_elf = 1; // don't delete elf
 
-		} else if (!strcmp(argv[arg_idx], "-o")) {
-			if ((arg_idx + 1) >= argc) fatal("no output given");
-			ld_argv[ld_argc++] = argv[arg_idx++];
-			ld_argv[(ld_output_idx = ld_argc++)] = argv[arg_idx];
+		} else if (!strncmp(argv[arg_idx], "-o", 2)) {
+			if(argv[arg_idx][2]) {
+				// -oFilename -> split to -o Filename
+				ld_argv[ld_argc++] = "-o";
+				ld_argv[(ld_output_idx = ld_argc++)] = &argv[arg_idx][2];
+			} else {
+				// -o Filename
+				if ((arg_idx + 1) >= argc) fatal("no output given");
+				ld_argv[ld_argc++] = argv[arg_idx++];
+				ld_argv[(ld_output_idx = ld_argc++)] = argv[arg_idx];
+			}
 
-		} else if (!strncmp(argv[arg_idx], "--", 2) || !strncmp(argv[arg_idx], "-m", 2)) { // enable --oprion an -moption
+		} else if (!strncmp(argv[arg_idx], "--", 2) || !strncmp(argv[arg_idx], "-m", 2)) { // enable --option an -moption
 			p = &argv[arg_idx][2];
 			if (argv[arg_idx][1] == '-' && *p == 'm') ++p; // enable --moption to
 			no = !strncmp(p, "no-", 3);
@@ -203,22 +231,27 @@ int main(int argc, char *argv[]) {
 
 
 	}
-	if (!ld_output_idx) {
+	if (!ld_output_idx) { // no -o Filename -> use std "a.elf"
 		ld_argv[ld_argc++] = "-o";
 		ld_argv[ld_argc++] = tostool_input;
 	} else {
-		p = strrchr(ld_argv[ld_output_idx], '.');
-		if (p && !strcasecmp(p, ".elf"))
-			no_tostool = 1;
-		else {
-			tostool_output = ld_argv[ld_output_idx];
+		p = getFileName(ld_argv[ld_output_idx]);
+		if(!strcmp(p, "-") || !strcmp(p, "/dev/null") || !strcmp(p, "nul")) {
+			no_tostool = 1; // output to stdout or /dev/null -> don't invoke tostool
+		} else {
+			p = getFileExt(ld_argv[ld_output_idx]);
+			if (p && !strcasecmp(p, ".elf"))
+				no_tostool = 1; // explicit .elf -> don't invoke tostool
+			else {
+				tostool_output = ld_argv[ld_output_idx];
 
-			if (!p) p = &tostool_output[strlen(tostool_output)];
-			if (!(tostool_input = (char*)malloc(p - tostool_output + sizeof(".elf")))) fatal("out of memory");
-			strncpy(tostool_input, tostool_output, p - tostool_output); tostool_input[p - tostool_output] = 0;
-			strcat(tostool_input, ".elf");
+				if (!p) p = &tostool_output[strlen(tostool_output)];
+				if (!(tostool_input = (char*)malloc(p - tostool_output + sizeof(".elf")))) fatal("out of memory@" LINE_STRING);
+				strncpy(tostool_input, tostool_output, p - tostool_output); tostool_input[p - tostool_output] = 0;
+				strcat(tostool_input, ".elf");
 
-			ld_argv[ld_output_idx] = tostool_input;
+				ld_argv[ld_output_idx] = tostool_input;
+			}
 		}
 	}
 

@@ -1,5 +1,5 @@
 
-	.section	.slb_head,"aw",@progbits		
+	.section .slb_head,"aw",@progbits
 	.long 0x70004afc			/* magic		*/	
 	.long _slb_name				/* name		*/
 	.long 1						/* version	*/	
@@ -17,7 +17,7 @@
 	.long 0						/* Reserved	*/	
 	.long 0						/* Reserved	*/	
 	.long 0						/* Reserved	*/	
-	.text												
+	.text
 
 	.long _slb_version		/* version	*/	
 
