@@ -249,6 +249,36 @@ if [ -d $srcdir/$MPC_SRC ]; then
 	with_mpc="--with-mpc=$builddir/mpc"
 fi
 
+
+#---------------------------------------------------------------------------------
+# build and install LIBICONV
+#---------------------------------------------------------------------------------
+
+if [ -d $srcdir/$LIBICONV_SRC ]; then
+
+	mkdir -p $builddir/libiconv && cd $builddir/libiconv || { echo "Can't change dir to $builddir/libiconv"; exit 1; }
+
+	if [ ! -f configured-libiconv ]; then
+#		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		../../src/$LIBICONV_SRC/configure --disable-shared --enable-static --enable-extra-encodings --prefix=$builddir/libiconv/libiconv
+		touch configured-libiconv
+	fi
+
+	if [ ! -f build-libiconv ]; then
+		rm -f installed-libiconv
+		$MAKE || { echo "Error building mpc"; exit 1; }
+		touch build-libiconv
+	fi
+
+	if [ ! -f installed-libiconv ]; then
+		$MAKE install || { echo "Error installing libiconv"; exit 1; }
+		touch installed-libiconv
+	fi
+	with_iconv="--with-libiconv-prefix=$builddir/libiconv/libiconv"
+fi
+
+ 
+
 #---------------------------------------------------------------------------------
 # create sysroot folder
 #---------------------------------------------------------------------------------
@@ -285,6 +315,7 @@ if [ ! -f configured-gcc ]; then
 		$with_gmp \
 		$with_mpfr \
 		$with_mpc \
+		$with_iconv \
 		--with-bugurl="http://code.google.com/p/m68k-atari-mint-elf/issues/list" --with-pkgversion="devkitMINT by ardi release 3" || { echo "Error configuring gcc"; exit 1; }
 	touch configured-gcc
 fi
@@ -292,7 +323,8 @@ fi
 if [ ! -f build-gcc-stage1 ]; then
 	rm -f installed-gcc-stage1
 	$MAKE all-gcc || { echo "Error building gcc stage1"; exit 1; }
-	touch build-gcc-stage1
+# temporary disabled - always buld gcc
+#	touch build-gcc-stage1
 fi
 
 if [ ! -f installed-gcc-stage1 ]; then
