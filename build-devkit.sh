@@ -86,6 +86,12 @@ MPC_ARC=$(echo -e "#define __MPC_H\n#include <mpc.h>" | gcc -E - &> /dev/null ||
 MPC_URL="https://ftp.gnu.org/gnu/mpc/$MPC_ARC"
 MPC_SRC="mpc-$MPC_VER"
 
+LIBICONV_VER=1.15
+LIBICONV_ARC="libiconv-$LIBICONV_VER.tar.gz"
+LIBICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/$LIBICONV_ARC"
+LIBICONV_SRC="libiconv-$LIBICONV_VER"
+
+
 GCC_VER=8.1.0
 GCC_ARC="gcc-$GCC_VER.tar.gz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VER/$GCC_ARC"
@@ -123,7 +129,7 @@ GEMLIB_URL="https://github.com/freemint/lib/archive/$GEMLIB_VER.tar.gz"
 GEMLIB_SRC="lib-$GEMLIB_VER"
 
 
-PACKAGE_LIST="BINUTILS GMP MPFR MPC GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
+PACKAGE_LIST="BINUTILS GMP MPFR MPC LIBICONV GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
 
 
 #---------------------------------------------------------------------------------
@@ -156,8 +162,8 @@ function download() {
 	if [ ! -f $file ]; then
 		[ -z $url ] && echo "no URL for $file. Download and store to `pwd`" && exit 1
 		if [ -z "$FETCH" ]; then
-			if [ -z "$FETCH" -a -x "$(which wget 2>/dev/null)" ]; then FETCH="$(which wget 2>dev/null) --no-check-certificate -O"; fi
-			if [ -z "$FETCH" -a -x "$(which curl 2>/dev/null)" ]; then FETCH="$(which curl 2>dev/null) -k -f -L -o"; fi
+			if [ -z "$FETCH" -a -x "$(which wget 2>/dev/null)" ]; then FETCH="$(which wget 2>/dev/null) --no-check-certificate -O"; fi
+			if [ -z "$FETCH" -a -x "$(which curl 2>/dev/null)" ]; then FETCH="$(which curl 2>/dev/null) -k -f -L -o"; fi
 			[ -z "$FETCH" ] && { echo "ERROR: Please make sure you have wget or curl installed."; exit 1; }
 		fi
 		rm -f "$file.tmp"
