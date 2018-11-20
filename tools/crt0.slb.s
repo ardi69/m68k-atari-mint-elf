@@ -25,36 +25,36 @@
 	.even
 .slb_init:
 	move.l %a2,-(%sp)
-	move.l %d2,-(%sp)
-	move.l ___CTOR_LIST__,%d2
+	move.l %d3,-(%sp)
+	move.l ___CTOR_LIST__,%d3
 	moveq #-1,%d0
-	cmp.l %d2,%d0
+	cmp.l %d3,%d0
 	jeq .L14
 .L2:
-	tst.l %d2
+	tst.l %d3
 	jeq .L5
-	move.l %d2,%a2
-	add.l %d2,%a2
+	move.l %d3,%a2
+	add.l %d3,%a2
 	add.l %a2,%a2
 	add.l #___CTOR_LIST__+4,%a2
 .L6:
 	move.l -(%a2),%a0
 	jsr (%a0)
-	subq.l #1,%d2
+	subq.l #1,%d3
 	jne .L6
 .L5:
-	move.l (%sp)+,%d2
+	move.l (%sp)+,%d3
 	move.l (%sp)+,%a2
 	jra _slb_init
 .L14:
 	lea ___CTOR_LIST__+4,%a0
-	moveq #0,%d2
+	moveq #0,%d3
 .L3:
-	move.l %d2,%d0
+	move.l %d3,%d0
 	addq.l #1,%d0
 	tst.l (%a0)+
 	jeq .L2
-	move.l %d0,%d2
+	move.l %d0,%d3
 	jra .L3
 	.even
 .slb_exit:
