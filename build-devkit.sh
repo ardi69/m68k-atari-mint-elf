@@ -86,11 +86,15 @@ MPC_ARC=$(echo -e "#define __MPC_H\n#include <mpc.h>" | gcc -E - &> /dev/null ||
 MPC_URL="https://ftp.gnu.org/gnu/mpc/$MPC_ARC"
 MPC_SRC="mpc-$MPC_VER"
 
-LIBICONV_VER=1.15
-LIBICONV_ARC="libiconv-$LIBICONV_VER.tar.gz"
-LIBICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/$LIBICONV_ARC"
-LIBICONV_SRC="libiconv-$LIBICONV_VER"
+ISL_VER=0.20
+ISL_ARC="isl-$ISL_VER.tar.bz2"
+ISL_URL="http://isl.gforge.inria.fr/$ISL_ARC"
+ISL_SRC="isl-$ISL_VER"
 
+ICONV_VER=1.15
+ICONV_ARC="libiconv-$ICONV_VER.tar.gz"
+ICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/$ICONV_ARC"
+ICONV_SRC="libiconv-$ICONV_VER"
 
 GCC_VER=8.1.0
 GCC_ARC="gcc-$GCC_VER.tar.gz"
@@ -129,7 +133,7 @@ GEMLIB_URL="https://github.com/freemint/lib/archive/$GEMLIB_VER.tar.gz"
 GEMLIB_SRC="lib-$GEMLIB_VER"
 
 
-PACKAGE_LIST="BINUTILS GMP MPFR MPC LIBICONV GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
+PACKAGE_LIST="BINUTILS GMP MPFR MPC ISL ICONV GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
 
 
 #---------------------------------------------------------------------------------
@@ -254,6 +258,9 @@ function extract_package() {
 			;;
 		*gz)
 			tar -xzf $downloaddir/$arc || { echo "Error extracting $arc"; exit 1; }
+			;;
+		*xz)
+			tar -xJf $downloaddir/$arc || { echo "Error extracting $arc"; exit 1; }
 			;;
 		*)
 			echo "Error no extracting rule for $arc"

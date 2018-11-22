@@ -630,7 +630,7 @@ Index: gcc/config/m68k/m68k.c
 +     register, we can't use this register for our own purposes.
 +     FIXME: Something similar would be useful for static chain.  */
 +  if (fntype && aggregate_value_p (TREE_TYPE (fntype), fntype))
-+    cum->regs_already_used |= (1 << M68K_FASTCALL_STRUCT_VALUE_REGNUM);
++    cum->regs_already_used |= (1 << M68K_STRUCT_VALUE_REGNUM);
 +#endif
 +}
 +
@@ -842,8 +842,8 @@ Index: gcc/config/m68k/m68k.c
  m68k_struct_value_rtx (tree fntype ATTRIBUTE_UNUSED,
  		       int incoming ATTRIBUTE_UNUSED)
  {
-+	if(m68k_fastcall_function(fntype))
-+		return gen_rtx_REG (Pmode, M68K_FASTCALL_STRUCT_VALUE_REGNUM);
++//	if(m68k_fastcall_function(fntype))
++//		return gen_rtx_REG (Pmode, M68K_FASTCALL_STRUCT_VALUE_REGNUM);
    return gen_rtx_REG (Pmode, M68K_STRUCT_VALUE_REGNUM);
  }
  
@@ -1050,25 +1050,15 @@ Index: gcc/config/m68k/m68k.h
      }									\
    while (0)
  
-@@ -406,12 +424,14 @@
-  */
- #define ARG_POINTER_REGNUM 24
+@@ -408,6 +426,7 @@
  
--#define STATIC_CHAIN_REGNUM A0_REG
--#define M68K_STATIC_CHAIN_REG_NAME REGISTER_PREFIX "a0"
-+#define STATIC_CHAIN_REGNUM (A0_REG)
-+#define M68K_STATIC_CHAIN_REG_NAME (REGISTER_PREFIX "a0")
-+#define M68K_FASTCALL_STATIC_CHAIN_REGNUM (A2_REG)
+ #define STATIC_CHAIN_REGNUM A0_REG
+ #define M68K_STATIC_CHAIN_REG_NAME REGISTER_PREFIX "a0"
++#define M68K_FASTCALL_STATIC_CHAIN_REGNUM A2_REG
  
  /* Register in which address to store a structure value
     is passed to a function.  */
--#define M68K_STRUCT_VALUE_REGNUM A1_REG
-+#define M68K_STRUCT_VALUE_REGNUM (A1_REG)
-+#define M68K_FASTCALL_STRUCT_VALUE_REGNUM (A0_REG)
- 
- 
- 
-@@ -470,7 +490,7 @@
+@@ -470,7 +489,7 @@
  
  #define PUSH_ROUNDING(BYTES) m68k_push_rounding (BYTES)
  
@@ -1077,7 +1067,7 @@ Index: gcc/config/m68k/m68k.h
  
  /* On the m68k the return value defaults to D0.  */
  #define FUNCTION_VALUE(VALTYPE, FUNC)  \
-@@ -488,17 +508,72 @@
+@@ -488,17 +507,72 @@
  #define NEEDS_UNTYPED_CALL 0
  
  /* On the m68k, all arguments are usually pushed on the stack.  */
@@ -1157,7 +1147,7 @@ Index: gcc/config/m68k/m68k.h
    asm_fprintf (FILE, "\tlea %LLP%d,%Ra0\n\tjsr mcount\n", (LABELNO))
  
  #define EXIT_IGNORE_STACK 1
-@@ -523,7 +598,7 @@
+@@ -523,7 +597,7 @@
     Since more instructions are required to move a template into
     place than to create it on the spot, don't use a template.  */
  
@@ -1166,7 +1156,16 @@ Index: gcc/config/m68k/m68k.h
  #define TRAMPOLINE_ALIGNMENT 16
  
  /* Targets redefine this to invoke code to either flush the cache,
-@@ -947,4 +1022,6 @@
+@@ -545,6 +619,8 @@
+    (though the operand list is empty).  */
+ #define TRANSFER_FROM_TRAMPOLINE				\
+ void								\
++__transfer_from_trampoline ();					\
++void								\
+ __transfer_from_trampoline ()					\
+ {								\
+   register char *a0 asm (M68K_STATIC_CHAIN_REG_NAME);		\
+@@ -947,4 +1023,6 @@
  extern int m68k_sched_address_bypass_p (rtx_insn *, rtx_insn *);
  extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
  
@@ -1513,7 +1512,7 @@ Index: gcc/config/m68k/mint.h
 ===================================================================
 --- gcc/config/m68k/mint.h	(nicht existent)
 +++ gcc/config/m68k/mint.h	(Arbeitskopie)
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,319 @@
 +/* Definitions of target machine for GNU compiler.
 +   Atari ST TOS/MiNT.
 +   Copyright (C) 1994, 1995, 2007, 2008, 2009, 2010, 2011
@@ -1747,6 +1746,55 @@ Index: gcc/config/m68k/mint.h
 +#define M68K_FUNCTION_PROFILER(FILE, LABELNO)  \
 +  asm_fprintf (FILE, "\tjsr mcount\n")
 +
++/* This is the library routine that is used to transfer control from the
++   trampoline to the actual nested function.  It is defined for backward
++   compatibility, for linking with object code that used the old trampoline
++   definition.*/
++/* MiNT don't needs backward compatibility */
++#undef TRANSFER_FROM_TRAMPOLINE
++
++
++#undef FINALIZE_TRAMPOLINE
++#define FINALIZE_TRAMPOLINE(TRAMP)							\
++	emit_library_call (init_one_libfunc("__clear_cache"),	\
++			LCT_NORMAL, VOIDmode, TRAMP, Pmode,				\
++			plus_constant (Pmode, TRAMP, TRAMPOLINE_SIZE), Pmode);
++
++/* Clear the instruction cache from `beg' to `end'.  This makes an
++   Gemdos call SSystem(S_FLUSHCACHE, ... ).  */
++
++#define CLEAR_INSN_CACHE(BEG, END)									\
++{																	\
++	static long available = 0;										\
++	if (available < 0 /* ENOSYS*/) return;							\
++	register long ret __asm__("%d0");								\
++	register long _BEG __asm__("%a0") = (long) BEG;					\
++	register long _END __asm__("%a1") = (long) END;					\
++	__asm__ volatile												\
++  	(																\
++ 		"subl	%1, %2\n\t"											\
++ 		"movl	%2,sp@-\n\t"										\
++  		"movl	%1,sp@-\n\t"										\
++  		"movl	#(340<<16)+16,sp@-\n\t" /* SSystem(S_FLUSHCACHE, ... ) */	\
++  		"trap	#1\n\t"					/* Gemdos call */			\
++  		"lea	sp@(12),sp"											\
++  	: "=r" (ret), "+a"(_BEG), "+a"((_END))							\
++  	:  /* inputs  */	\
++  	:  "d1", "d2", "a2"    /* clobbered regs */			\
++  	);																\
++	available = ret;												\
++}
++
++/* ColdFire and fido strongly prefer a 32-bit aligned stack.  */
++/* BUG with -mshort see GCC Bugzilla BUG 88160
++   --> temporary set PREFERRED_STACK_BOUNDARY to 16 for coldfire with mshort */
++#undef PREFERRED_STACK_BOUNDARY
++#define PREFERRED_STACK_BOUNDARY \
++  (((TARGET_COLDFIRE && !TARGET_SHORT) || TARGET_FIDOA) ? 32 : 16)
++
++
++
++
 +/* the defines above should be in mint-stdint.h */
 +
 +
@@ -1959,6 +2007,19 @@ Index: gcc/function.c
  {
    struct assign_parm_data_all all;
    tree parm;
+Index: gcc/graphite.h
+===================================================================
+--- gcc/graphite.h	(Revision 2)
++++ gcc/graphite.h	(Arbeitskopie)
+@@ -37,6 +37,8 @@
+ #include <isl/schedule.h>
+ #include <isl/ast_build.h>
+ #include <isl/schedule_node.h>
++#include <isl/id.h>
++#include <isl/space.h>
+ 
+ typedef struct poly_dr *poly_dr_p;
+ 
 Index: libcpp/init.c
 ===================================================================
 --- libcpp/init.c	(Revision 2)
@@ -2062,12 +2123,22 @@ Index: libgcc/unwind-dw2.c
  
 +#if defined(__mcoldfire__) && defined(__MSHORT__)
 +// this is only a bad hack
-+#pragma GCC optimize "O1"
++#pragma GCC optimize "O0"
 +#endif
 +
  #include "tconfig.h"
  #include "tsystem.h"
  #include "coretypes.h"
+@@ -40,7 +45,8 @@
+ #ifdef HAVE_SYS_SDT_H
+ #include <sys/sdt.h>
+ #endif
+-
++//void my_memset(void *, long, size_t);
++//#define memset my_memset
+ #ifndef __USING_SJLJ_EXCEPTIONS__
+ 
+ #ifndef __LIBGCC_STACK_GROWS_DOWNWARD__
 Index: libiberty/configure
 ===================================================================
 --- libiberty/configure	(Revision 2)
