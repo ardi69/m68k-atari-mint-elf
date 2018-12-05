@@ -96,8 +96,8 @@ ICONV_ARC="libiconv-$ICONV_VER.tar.gz"
 ICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/$ICONV_ARC"
 ICONV_SRC="libiconv-$ICONV_VER"
 
-GCC_VER=8.1.0
-GCC_ARC="gcc-$GCC_VER.tar.gz"
+GCC_VER=8.2.0
+GCC_ARC="gcc-$GCC_VER.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VER/$GCC_ARC"
 GCC_SRC="gcc-$GCC_VER"
 

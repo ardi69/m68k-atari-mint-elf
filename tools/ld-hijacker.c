@@ -114,15 +114,6 @@ static void fatal(const char *msg) {
 }
 
 
-static char *getFileExt(char *PathFileName) {
-	char *p = strrchr(PathFileName, '.'); // find last dot
-	if (!strchr(p, '/') // check is dot nont in path
-#ifdef _WIN32
-		&& !strchr(p, '\\')
-#endif
-	) return p;
-	return 0;
-}
 static char *getFileName(char *PathFileName) {
 	char *p = strrchr(PathFileName, '/'); // find last slash
 #ifdef _WIN32
@@ -130,6 +121,10 @@ static char *getFileName(char *PathFileName) {
 #endif
 	if (p) ++p; // skip slash
 	return p ?: PathFileName;
+}
+
+static char *getFileExt(char *PathFileName) {
+	return strrchr(getFileName(PathFileName), '.'); // find last dot in filename
 }
 
 int main(int argc, char *argv[]) {
@@ -231,11 +226,12 @@ int main(int argc, char *argv[]) {
 
 
 	}
+	ld_argv[ld_argc++] = "-v";
 	if (!ld_output_idx) { // no -o Filename -> use std "a.elf"
 		ld_argv[ld_argc++] = "-o";
 		ld_argv[ld_argc++] = tostool_input;
 	} else {
-		p = getFileName(ld_argv[ld_output_idx]);
+		p = ld_argv[ld_output_idx];
 		if(!strcmp(p, "-") || !strcmp(p, "/dev/null") || !strcmp(p, "nul")) {
 			no_tostool = 1; // output to stdout or /dev/null -> don't invoke tostool
 		} else {

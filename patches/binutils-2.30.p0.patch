@@ -321,13 +321,12 @@ Index: ld/emulparams/m68kmint.sh
 ===================================================================
 --- ld/emulparams/m68kmint.sh	(nicht existent)
 +++ ld/emulparams/m68kmint.sh	(Arbeitskopie)
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,18 @@
 +. ${srcdir}/emulparams/m68katari.sh
 +
 +MINT="0x4d694e54 /* MiNT */"
-+function EXTRA_HEADER() {
-+cat << EOF
-+    LONG(0x203a001a);                  /* g_jump_entry[0] */
++EXTRA_HEADER="$(cat << EOF
++LONG(0x203a001a);                  /* g_jump_entry[0] */
 +    LONG(0x4efb08fa);                  /* g_jump_entry[0] */
 +    LONG(0x108);                       /* e_info */
 +    LONG(.data_start - .entry );       /* e_text */
@@ -340,7 +339,7 @@ Index: ld/emulparams/m68kmint.sh
 +    LONG(1);                           /* g_symbol_format */
 +    . = . + 0xAC;
 +EOF
-+}
++)"
 Index: ld/emulparams/m68kslb.sh
 ===================================================================
 --- ld/emulparams/m68kslb.sh	(nicht existent)
@@ -435,7 +434,7 @@ Index: ld/scripttempl/m68kmint.sc
 ===================================================================
 --- ld/scripttempl/m68kmint.sc	(nicht existent)
 +++ ld/scripttempl/m68kmint.sc	(Arbeitskopie)
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,96 @@
 +cat <<EOF
 +${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 +${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
@@ -456,7 +455,7 @@ Index: ld/scripttempl/m68kmint.sc
 +  {
 +    ${RELOCATING+.text_start = .;}
 +
-+    $(EXTRA_HEADER)
++    ${EXTRA_HEADER}
 +
 +    .entry = .;
 +    KEEP(*(.text.entry.mint)) KEEP(*crt0*.o(.text))
@@ -500,30 +499,25 @@ Index: ld/scripttempl/m68kmint.sc
 +    ${RELOCATING+_edata = .;}
 +    ${RELOCATING+__edata = .;}
 +  }
-+  .tdata . : SUBALIGN(2)
++  .tdata . : SUBALIGN(4)
 +  {
-+    ${RELOCATING+.tdata_start = .;}
++    ___TLS_DATA__ = .;
 +    *(.tdata) *(.tdata.*)
 +    . = ALIGN(2);
-+    ${RELOCATING+_etdata = .;}
-+    ${RELOCATING+__etdata = .;}
++    ___TLS_DATA_SIZE = . - ___TLS_DATA_BEGIN__;
 +  }
-+  .tbss . : SUBALIGN(2)
++  .tbss . : SUBALIGN(4)
 +  {
-+    ${RELOCATING+.tbss_start = .;}
 +     *(.tbss) *(.tbss.*)
-+    ${RELOCATING+_etbss = .;}
-+    ${RELOCATING+__etbss = .;}
-+    ${RELOCATING+.tbss_end = .;}
++    ___TLS_SIZE__ = . - ___TLS_DATA_BEGIN__;
 +  }
 +  .bss . : SUBALIGN(2)
 +  {
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
-+    . = ALIGN(2);
-+    ${RELOCATING+_main_tls = .;}
-+    ${RELOCATING+__main_tls = .;}
-+    . = . + .tbss_end - .tdata_start;
++    . = ALIGN(4);
++    ${RELOCATING+___main_tls = .;}
++    . = . + ___TLS_SIZE__;
 +    . = ALIGN(2);
 +    ${RELOCATING+_end = .;}
 +    ${RELOCATING+__end = .;}

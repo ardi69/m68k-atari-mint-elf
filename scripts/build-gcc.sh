@@ -48,39 +48,30 @@ function ftime() {
 
 mkdir -p $builddir/binutils && cd $builddir/binutils || { echo "Can't change dir to $builddir/binutils"; exit 1; }
 
-if [ ! -f _binutils-configured ]; then
+if [ ! -f $builddir/_binutils-configured ]; then
 	rm -fr * # force build & install
 	CFLAGS=$cflags LDFLAGS=$ldflags ../../src/$BINUTILS_SRC/configure \
 		--prefix=$prefix --target=$target --disable-nls --disable-dependency-tracking --disable-werror \
 		|| { echo "Error configuring binutils"; exit 1; }
-	touch _binutils-configured
+	touch $builddir/_binutils-configured
 fi
 
-if [ ! -f _binutils-build ]; then
-	rm -f _binutils-installed # force install
+if [ ! -f $builddir/_binutils-build ]; then
+	rm -f $builddir/_binutils-installed # force install
 	$MAKE || { echo "Error building binutils"; exit 1; }
-	touch _binutils-build
+	touch $builddir/_binutils-build
 fi
 
-if [ ! -f _binutils-installed ]; then
+if [ ! -f $builddir/_binutils-installed ]; then
 	# dev-mode on
 	# when reinstall then remove all ld's, strip's and force istall ld-hijacker and strip
-	for f in $prefix/bin/$target-ld* $prefix/bin/$target-strip* $prefix/$target/bin/ld* $prefix/$target/bin/strip*; do rm -f $f; done
-	rm -f $rootdir/tools/_ld-hijacker-installed $rootdir/tools/_strip-hijacker-installed
+#	for f in $prefix/bin/$target-ld* $prefix/bin/$target-strip* $prefix/$target/bin/ld* $prefix/$target/bin/strip*; do rm -fv $f; done
+	rm -fv $prefix/bin/$target-ld* $prefix/bin/$target-strip* $prefix/$target/bin/ld* $prefix/$target/bin/strip*
+	rm -f $builddir/_ld-hijacker-installed $builddir/_strip-hijacker-installed
 	# dev-mode off
 
 	$MAKE install || { echo "Error installing binutils"; exit 1; }
-	touch _binutils-installed
-fi
-
-#---------------------------------------------------------------------------------
-# install extra-files
-#---------------------------------------------------------------------------------
-cd $rootdir
-
-if [ ! -f _extra-files-installed ]; then
-	cp -vr extra-files/* $INSTALLDIR || { echo "Error installing extar-files"; exit 1; }
-	touch _extra-files-installed
+	touch $builddir/_binutils-installed
 fi
 
 #---------------------------------------------------------------------------------
@@ -88,13 +79,13 @@ fi
 #---------------------------------------------------------------------------------
 cd $rootdir/tools
 
-if [ ! -f _tostool-installed ] || [ `ftime $prefix/bin/tostool$exe_ext` -lt `ftime tostool.c` ]; then
+if [ ! -f $builddir/_tostool-installed ] || [ `ftime $prefix/bin/tostool$exe_ext` -lt `ftime tostool.c` ]; then
 	echo "build tostool"
 	gcc -O2 -Wall tostool.c -o $prefix/bin/tostool$exe_ext && strip $prefix/bin/tostool$exe_ext || { echo "Error building tostool"; exit 1; }
 	echo "install tostool"
 	link_or_copy $prefix/bin/tostool$exe_ext $prefix/bin/$target-tostool$exe_ext || { echo "Error installing $prefix/bin/$target-tostool$exe_ext"; exit 1; }
 	link_or_copy $prefix/bin/tostool$exe_ext $prefix/$target/bin/tostool$exe_ext || { echo "Error installing $prefix/$target/bin/tostool$exe_ext"; exit 1; }
-	touch _tostool-installed
+	touch $builddir/_tostool-installed
 fi
 
 
@@ -109,8 +100,10 @@ function hijack() {
 		case `basename $orig` in
 		*elf*);;
 		*)	elf=`dirname $orig`/`basename $orig $exe_ext`.elf$exe_ext
-			echo revert $elf to $orig
-			if [ -f $elf ]; then mv -f $elf $orig || { echo "Error reverting $elf to $orig"; exit 1; }; fi
+			if [ -f $elf ]; then
+				echo revert $elf to $orig
+				mv -f $elf $orig || { echo "Error reverting $elf to $orig"; exit 1; }
+			fi
 			;;
 		esac
 	done
@@ -137,17 +130,17 @@ function hijack() {
 
 cd $rootdir/tools
 
-if [ ! -f _ld-hijacker-build ] || [ `ftime ld-hijacker$exe_ext` -lt `ftime ld-hijacker.c` ]; then
-	rm -f _ld-hijacker-installed # force install
+if [ ! -f $builddir/_ld-hijacker-build ] || [ `ftime ld-hijacker$exe_ext` -lt `ftime ld-hijacker.c` ]; then
+	rm -f $builddir/_ld-hijacker-installed # force install
 	echo "build ld-hijacker"
 	gcc -O2 -Wall ld-hijacker.c -o ld-hijacker$exe_ext && strip ld-hijacker$exe_ext || { echo "Error building ld-hijacker"; exit 1; }
-	touch _ld-hijacker-build
+	touch $builddir/_ld-hijacker-build
 fi
 
-if [ ! -f _ld-hijacker-installed ]; then
+if [ ! -f $builddir/_ld-hijacker-installed ]; then
 	echo "install ld-hijacker"
 	hijack ld ld-hijacker$exe_ext ld-hijacker
-	touch _ld-hijacker-installed
+	touch $builddir/_ld-hijacker-installed
 fi
 
 #---------------------------------------------------------------------------------
@@ -156,17 +149,17 @@ fi
 
 cd $rootdir/tools
 
-if [ ! -f _strip-hijacker-build ] || [ ! -f strip-hijacker$exe_ext ]; then
-	rm -f _strip-hijacker-installed # force install
+if [ ! -f $builddir/_strip-hijacker-build ] || [ ! -f strip-hijacker$exe_ext ]; then
+	rm -f $builddir/_strip-hijacker-installed # force install
 	echo "build strip-hijacker"
 	echo "int main(){return 0;}" | gcc -xc -O2 -Wall -o strip-hijacker$exe_ext - && strip strip-hijacker$exe_ext || { echo "Error building strip-hijacker"; exit 1; }
-	touch _strip-hijacker-build
+	touch $builddir/_strip-hijacker-build
 fi
 
-if [ ! -f _strip-hijacker-installed ]; then
+if [ ! -f $builddir/_strip-hijacker-installed ]; then
 	echo "install strip-hijacker"
 	hijack strip strip-hijacker$exe_ext strip-hijacker
-	touch _strip-hijacker-installed
+	touch $builddir/_strip-hijacker-installed
 fi
 #---------------------------------------------------------------------------------
 # build and install GMP
@@ -176,21 +169,22 @@ if [ -d $srcdir/$GMP_SRC ]; then
 
 	mkdir -p $builddir/gmp && cd $builddir/gmp || { echo "Can't change dir to $builddir/gmp"; exit 1; }
 
-	if [ ! -f _gmp-configured ]; then
+	if [ ! -f $builddir/_gmp-configured ]; then
 		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		rm -f $builddir/_gmp-build
 		ABI=32 ../../src/$GMP_SRC/configure --disable-shared --prefix=$builddir/gmp/gmp || { echo "Error configuring gmp"; exit 1; }
-		touch _gmp-configured
+		touch $builddir/_gmp-configured
 	fi
 
-	if [ ! -f _gmp-build ]; then
-		rm -f gmp-installed
+	if [ ! -f $builddir/_gmp-build ]; then
+		rm -f $builddir/_gmp-installed
 		$MAKE || { echo "Error building gmp"; exit 1; }
-		touch _gmp-build
+		touch $builddir/_gmp-build
 	fi
 
-	if [ ! -f _gmp-installed ]; then
+	if [ ! -f $builddir/_gmp-installed ]; then
 		$MAKE install || { echo "Error installing gmp"; exit 1; }
-		touch _gmp-installed
+		touch $builddir/_gmp-installed
 	fi
 	with_gmp="--with-gmp=$builddir/gmp/gmp"
 	with_gmp_prefix="--with-gmp-prefix=$builddir/gmp/gmp"
@@ -204,21 +198,22 @@ if [ -d $srcdir/$MPFR_SRC ]; then
 
 	mkdir -p $builddir/mpfr && cd $builddir/mpfr || { echo "Can't change dir to $builddir/mpfr"; exit 1; }
 
-	if [ ! -f _mpfr-configured ]; then
-#		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+	if [ ! -f $builddir/_mpfr-configured ]; then
+		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		rm -f $builddir/_mpfr-build
 		../../src/$MPFR_SRC/configure --disable-shared --prefix=$builddir/mpfr/mpfr $with_gmp || { echo "Error configuring mpfr"; exit 1; }
-		touch _mpfr-configured
+		touch $builddir/_mpfr-configured
 	fi
 
-	if [ ! -f _mpfr-build ]; then
-		rm -f _mpfr-installed
+	if [ ! -f $builddir/_mpfr-build ]; then
+		rm -f $builddir/_mpfr-installed
 		$MAKE || { echo "Error building mpfr"; exit 1; }
-		touch _mpfr-build
+		touch $builddir/_mpfr-build
 	fi
 
-	if [ ! -f _mpfr-installed ]; then
+	if [ ! -f $builddir/_mpfr-installed ]; then
 		$MAKE install || { echo "Error installing mpfr"; exit 1; }
-		touch _mpfr-installed
+		touch $builddir/_mpfr-installed
 	fi
 	with_mpfr="--with-mpfr=$builddir/mpfr/mpfr"
 fi
@@ -231,21 +226,22 @@ if [ -d $srcdir/$MPC_SRC ]; then
 
 	mkdir -p $builddir/mpc && cd $builddir/mpc || { echo "Can't change dir to $builddir/mpc"; exit 1; }
 
-	if [ ! -f _mpc-configured ]; then
-#		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+	if [ ! -f $builddir/_mpc-configured ]; then
+		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		rm -f $builddir/_mpc-build
 		../../src/$MPC_SRC/configure --disable-shared --prefix=$builddir/mpc/mpc $with_gmp $with_mpfr || { echo "Error configuring mpc"; exit 1; }
-		touch _mpc-configured
+		touch $builddir/_mpc-configured
 	fi
 
-	if [ ! -f _mpc-build ]; then
-		rm -f _mpc-installed
+	if [ ! -f $builddir/_mpc-build ]; then
+		rm -f $builddir/_mpc-installed
 		$MAKE || { echo "Error building mpc"; exit 1; }
-		touch _mpc-build
+		touch $builddir/_mpc-build
 	fi
 
-	if [ ! -f _mpc-installed ]; then
+	if [ ! -f $builddir/_mpc-installed ]; then
 		$MAKE install || { echo "Error installing mpc"; exit 1; }
-		touch _mpc-installed
+		touch $builddir/_mpc-installed
 	fi
 	with_mpc="--with-mpc=$builddir/mpc/mpc"
 fi
@@ -258,21 +254,22 @@ if [ -d $srcdir/$ISL_SRC ]; then
 
 	mkdir -p $builddir/isl && cd $builddir/isl || { echo "Can't change dir to $builddir/isl"; exit 1; }
 
-	if [ ! -f _isl-configured ]; then
-#		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+	if [ ! -f $builddir/_isl-configured ]; then
+		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		tm -f $builddir/_isl_build
 		../../src/$ISL_SRC/configure --disable-shared --enable-static $with_gmp_prefix --prefix=$builddir/isl/isl || { echo "Error configuring isl"; exit 1; }
-		touch _isl-configured
+		touch $builddir/_isl-configured
 	fi
 
-	if [ ! -f _isl-build ]; then
-		rm -f _isl-installed
+	if [ ! -f $builddir/_isl-build ]; then
+		rm -f $builddir/_isl-installed
 		$MAKE || { echo "Error building isl"; exit 1; }
-		touch _isl-build
+		touch $builddir/_isl-build
 	fi
 
-	if [ ! -f _isl-installed ]; then
+	if [ ! -f $builddir/_isl-installed ]; then
 		$MAKE install || { echo "Error installing isl"; exit 1; }
-		touch _isl-installed
+		touch $builddir/_isl-installed
 	fi
 	with_isl="--with-isl=$builddir/isl/isl"
 fi
@@ -286,81 +283,155 @@ if [ -d $srcdir/$ICONV_SRC ]; then
 
 	mkdir -p $builddir/iconv && cd $builddir/iconv || { echo "Can't change dir to $builddir/iconv"; exit 1; }
 
-	if [ ! -f _iconv-configured ]; then
-#		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+	if [ ! -f $builddir/_iconv-configured ]; then
+		rm -fr config.log libtool config.h stamp-h1 gmp.h Makefile config.status config.m4
+		rm -f $builddir/_iconv_build
 		../../src/$ICONV_SRC/configure --disable-shared --enable-static --enable-extra-encodings --prefix=$builddir/iconv/iconv || { echo "Error configuring iconf"; exit 1; }
-		touch _iconv-configured
+		touch $builddir/_iconv-configured
 	fi
 
-	if [ ! -f _iconv-build ]; then
-		rm -f _iconv-installed
+	if [ ! -f $builddir/_iconv-build ]; then
+		rm -f $builddir/_iconv-installed
 		$MAKE || { echo "Error building iconv"; exit 1; }
-		touch _iconv-build
+		touch $builddir/_iconv-build
 	fi
 
-	if [ ! -f _iconv-installed ]; then
+	if [ ! -f $builddir/_iconv-installed ]; then
 		$MAKE install || { echo "Error installing libiconv"; exit 1; }
-		touch _iconv-installed
+		touch $builddir/_iconv-installed
 	fi
 	with_libiconv_prefix="--with-libiconv-prefix=$builddir/iconv/iconv"
 fi
 
-
-
-
 #---------------------------------------------------------------------------------
-# create sysroot folder
+# create sysroot dirs
 #---------------------------------------------------------------------------------
-echo "create sysroot dirs"
-mkdir -p $prefix/$target/sysroot/lib
-mkdir -p $prefix/$target/sysroot/usr/include
-mkdir -p $prefix/$target/sysroot/usr/lib
-mkdir -p $prefix/$target/sysroot/usr/local/include
-mkdir -p $prefix/$target/sysroot/usr/local/lib
+sysroot_includes="usr/include"
+sysroot_libs="lib usr/lib"
+sysroot_dir="$prefix/$target/../sysroot"
 
+if [ ! -f $builddir/_sysroot-dirs-created ]; then
+	echo "create sysroot dirs"
+	for p in $sysroot_includes $sysroot_libs; do
+		echo "mkdir -p $sysroot_dir/$p"
+		mkdir -p $sysroot_dir/$p || { echo "Error can't create dir $sysroot_dir/$p"; exit 1; }
+	done
+	touch $builddir/_sysroot-dirs-created
+fi
 #---------------------------------------------------------------------------------
 # build and install just the c compiler
 #---------------------------------------------------------------------------------
 cd $rootdir
 mkdir -p $builddir/gcc && cd $builddir/gcc || { echo "Can't change dir to $builddir/gcc"; exit 1; }
 
-if [ ! -f _gcc-configured ]; then
+if [ ! -f $builddir/_gcc-configured ]; then
 	rm -fr *
-	# can't use  -fomit-frame-pointer --> complile error on Coldfire with -mshort ???
-	CFLAGS="$cflags" LDFLAGS="$ldflags -static" CFLAGS_FOR_TARGET="-g -O2 -ffunction-sections -fdata-sections" CXXFLAGS_FOR_TARGET="-g -O2 -ffunction-sections -fdata-sections" LDFLAGS_FOR_TARGET="" \
+	rm -f $builddir/_gcc-stage1-build
+	#LDFLAGS="$ldflags -static -static-libgcc -static-libstdc++"
+	#	--disable-shared --enable-linker-plugin-configure-flags=--enable-shared \
+	CFLAGS="$cflags" CFLAGS_FOR_TARGET="-g -O2 -fomit-frame-pointer" CXXFLAGS_FOR_TARGET="-g -O2 -fomit-frame-pointer -ffunction-sections -fdata-sections" LDFLAGS_FOR_TARGET="" \
 		../../src/$GCC_SRC/configure \
 		--enable-languages=c,c++,objc \
 		--enable-interwork --enable-multilib \
-		--with-sysroot=$prefix/$target/sysroot \
+		--with-sysroot=$sysroot_dir \
 		--with-gcc --with-gnu-ld --with-gnu-as \
 		--disable-dependency-tracking \
-		--disable-shared --enable-threads=posix --disable-win32-registry --disable-nls --disable-debug\
+		--enable-threads=posix --disable-win32-registry --disable-nls --disable-debug \
 		--disable-libssp --disable-libgomp \
 		--disable-libstdcxx-pch \
 		--disable-initfini-array \
 		--target=$target \
 		--prefix=$prefix \
-		--enable-lto $plugin_ld\
+		--enable-lto \
 		$with_gmp \
 		$with_mpfr \
 		$with_mpc \
 		$with_isl \
 		$with_libiconv_prefix \
 		--with-bugurl="http://code.google.com/p/m68k-atari-mint-elf/issues/list" --with-pkgversion="devkitMINT by ardi release 3" || { echo "Error configuring gcc"; exit 1; }
-	touch _gcc-configured
+	touch $builddir/_gcc-configured
 fi
 
-if [ ! -f _gcc-stage1-build ]; then
-	rm -f _gcc-stage1-installed
+# configure stage 1
+if [ ! -f $builddir/_gcc-stage1-configure ]; then
+	rm -f $builddir/_gcc-stage1-build
+	$MAKE configure-gcc || { echo "Error configuring gcc stage1"; exit 1; }
+	touch $builddir/_gcc-stage1-configure
+fi
+
+# build stage 1
+if [ ! -f $builddir/_gcc-stage1-build ]; then
+	rm -f $builddir/_gcc-stage1-installed
+#	touch ../../src/$GCC_SRC/gcc/genmultilib
+	cd gcc
+	# rm -f s-mlib multilib.h
+	# build and patch multilib.h
+	$MAKE multilib.h
+	sed -E -i \
+		-e "s:^\"\. (.*) \!msoft-float( .*):\"m68000 \1\2:" \
+		-e "s:^\"(mshort|fastcall)(.*) \!msoft-float( .*):\"m68000/\1\2\3:" \
+		-e "s:^\"mshort (.*):\"m68000 \1\"m68000/mshort \1:" \
+		-e "s:^\"m68000 ([^;]*) mshort:\"m68000 \1 \!mshort:" \
+		-e "s:^\"(fastcall.*):\"m68000/\1:" \
+		multilib.h
+	cd ..
 	$MAKE all-gcc || { echo "Error building gcc stage1"; exit 1; }
 # temporary disabled - always buld gcc
-#	touch _gcc-stage1-build
+	touch $builddir/_gcc-stage1-build
 fi
 
-if [ ! -f _gcc-stage1-installed ]; then
+
+if [ ! -f $builddir/_gcc-stage1-installed ]; then
 	$MAKE install-gcc || { echo "Error installing gcc"; exit 1; }
-	touch _gcc-stage1-installed
+	touch $builddir/_gcc-stage1-installed
 #  rm -fr $prefix/$target/sys-include
+fi
+
+if [ ! -f $builddir/_gcc-liblto_plugin-for-binutils-installed ]; then
+	dlpath=$prefix/libexec/gcc/$target/`$target-gcc -dumpversion`
+	dlname=`cat $dlpath/liblto_plugin.la | grep dlname | sed -E -e "s:^.*='(.*)'.*:\1:"`
+	[ -f $dlpath/$dlname ] || { echo "Error $dlpath/$dlname not found"; exit 1; }
+	mkdir -p $prefix/$target/lib/bfd-plugins || { echo "Error can't create dir $prefix/$target/lib/bfd-plugins"; exit 1; }
+	link_or_copy $dlpath/$dlname $prefix/$target/lib/bfd-plugins || { echo "Error installing $dlname in $prefix/$target/lib/bfd-plugins"; exit 1; }
+	mkdir -p $prefix/lib/bfd-plugins || { echo "Error can't create dir $prefix/lib/bfd-plugins"; exit 1; }
+	link_or_copy $dlpath/$dlname $prefix/lib/bfd-plugins || { echo "Error installing $dlname in $prefix/lib/bfd-plugins"; exit 1; }
+	touch $builddir/_gcc-liblto_plugin-for-binutils-installed
+fi
+
+#---------------------------------------------------------------------------------
+# create multilib dirs
+#---------------------------------------------------------------------------------
+if [ ! -f $builddir/_multilib-dirs-created ]; then
+	echo "create multilib dirs"
+	for ml in `$prefix/bin/$target-gcc -print-multi-lib | sed -e "s/;.*$//"`; do
+		echo "mkdir -p $prefix/$target/lib/$ml"
+		mkdir -p $prefix/$target/lib/$ml || { echo "Error can't create dir $prefix/$target/lib/$ml"; exit 1; }
+		for p in $sysroot_libs; do
+			echo "mkdir -p $sysroot_dir/$p/$ml"
+			mkdir -p $sysroot_dir/$p/$ml || { echo "Error can't create dir $sysroot_dir/$p/$ml"; exit 1; }
+		done
+	done
+	touch $builddir/_multilib-dirs-created
+fi
+#---------------------------------------------------------------------------------
+# install crt0 & faket libc
+# for configuring libgcc crt0 and libc is needed
+# but vor building mintlib aka libc -> libgcc is needed
+# we build crt0 and a faked libc
+#---------------------------------------------------------------------------------
+
+if [ 0 -eq 1 ]; then
+
+echo "create & install crt0"
+	for ml in `$prefix/bin/$target-gcc -print-multi-lib`; do
+		ml_path=`echo $ml | sed -e "s/;.*$//"`
+		ml_opt=`echo $ml | sed -e "s/^.*;//" | sed -e "s/@/ -/g"`
+		CMD1="$prefix/bin/$target-gcc $ml_opt -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/crt0.o"
+		CMD2="$prefix/bin/$target-gcc $ml_opt -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/gcrt0.o"
+		echo "$CMD1 && $CMD2"
+		$CMD1 && $CMD2 || { echo "Error installing crt0.o for $ml_opt"; exit 1; }
+	done
+
 fi
 
 #---------------------------------------------------------------------------------
@@ -368,13 +439,26 @@ fi
 #---------------------------------------------------------------------------------
 cd $srcdir/$MINTLIB_SRC || { echo "Can't change dir to $srcdir/$MINTLIB_SRC"; exit 1; }
 
-if [ ! -f _mintlib-header-installed ]; then
+if [ ! -f $builddir/_mintlib-header-installed ]; then
+	echo "install mintlib header files"
 	$MAKE CROSS=yes prefix=$prefix/$target install-include-recursive || { echo "Error Can't install mintlib header"; exit 1; }
 	cd include
 	$MAKE CROSS=yes prefix=$prefix/$target install-include-recursive || { echo "Error Can't install mintlib header"; exit 1; }
-	cd ..
-	touch _mintlib-header-installed
+	touch $builddir/_mintlib-header-installed
 fi
+
+
+#---------------------------------------------------------------------------------
+# install extra-files  pthread.h needed by libgcc
+#---------------------------------------------------------------------------------
+cd $rootdir
+
+if [ ! -f $builddir/_extra-files-installed ]; then
+	echo "install extra-files"
+	cp -vr extra-files/* $INSTALLDIR || { echo "Error installing extar-files"; exit 1; }
+	touch $builddir/_extra-files-installed
+fi
+
 
 #---------------------------------------------------------------------------------
 # now build libgcc because needed by mintlib for building zic etc.
@@ -382,20 +466,22 @@ fi
 
 cd $builddir/gcc || { echo "Can't change dir to $builddir/gcc"; exit 1; }
 
-if [ ! -f _libgcc-build ]; then
-#	rm -f _libgcc-installed
+if [ ! -f $builddir/_libgcc-build ]; then
+	rm -f $builddir/_libgcc-installed
 	$MAKE all-target-libgcc || { echo "Error building libgcc"; exit 1; }
-#	touch _libgcc-build
+	touch $builddir/_libgcc-build
 fi
-if [ ! -f _libgcc-installed ]; then
+if [ ! -f $builddir/_libgcc-installed ]; then
 	$MAKE install-target-libgcc || { echo "Error installing libgcc"; exit 1; }
-	touch _libgcc-installed
+	touch $builddir/_libgcc-installed
 fi
-exit;
+
 unset CFLAGS
 #---------------------------------------------------------------------------------
 # build and install mintlib
 #---------------------------------------------------------------------------------
+if [ 0 -eq 1 ]; then # temporary disabled
+
 cd $srcdir/$MINTLIB_SRC
 
 if [ ! -f includepath ]; then
@@ -421,30 +507,33 @@ if [ ! -f _crt0-mcpu-5475-installed ]; then
 	touch _crt0-mcpu-5475-installed
 fi
 
+fi
+
 #---------------------------------------------------------------------------------
 # build and install libcmini
 #---------------------------------------------------------------------------------
 
-if [ 1 -eq 0 ]; then
-cd $rootdir/libcmini
-if [ ! -f _libcmini-build ]; then
-	$MAKE MINTLIB_COMAPTIBLE=Y TESTS="" DEVKITMINT="" || { echo "Error building libcmini"; exit 1; }
-	touch _libcmini-build
+cd $srcdir/libcmini
+if [ ! -f $builddir/_libcmini-build ]; then
+	rm -f $builddir/_libcmini-installed
+	$MAKE STDIO_WITH_LONG_LONG=yes TESTS="" CFLAGS="-Wall -O2 -fomit-frame-pointer -flto -ffat-lto-objects" PREFIX_FOR_LIB=$prefix/$target/lib PREFIX_FOR_INCLUDE=$prefix/$target/include/libcmini || { echo "Error building libcmini"; exit 1; }
+	touch $builddir/_libcmini-build
 fi
 
-if [ ! -f _libcmini-installed ]; then
-	for f in . m68020-60 m5475; do
-		cp -v $f/libcmini.a $prefix/$target/lib/$f/
-		cp -v $f/mshort/libcmini.a $prefix/$target/lib/$f/mshort/
-		# because mintlib no more supports -mshort we use libcmini as libc
-		cp -v $f/mshort/libcmini.a $prefix/$target/lib/$f/mshort/libc.a
+if [ ! -f $builddir/_libcmini-installed ]; then
+	$MAKE STDIO_WITH_LONG_LONG=yes TESTS="" INSTALLDIR_FOR_LIB=$prefix/$target/lib INSTALLDIR_FOR_INCLUDE=$prefix/$target/include/libcmini || { echo "Error building libcmini"; exit 1; }
+#	for f in . m68020-60 m5475; do
+#		cp -v $f/libcmini.a $prefix/$target/lib/$f/
+#		cp -v $f/mshort/libcmini.a $prefix/$target/lib/$f/mshort/
+#		# because mintlib no more supports -mshort we use libcmini as libc
+#		cp -v $f/mshort/libcmini.a $prefix/$target/lib/$f/mshort/libc.a
 
-		cp -v $f/libiiomini.a $prefix/$target/lib/$f/
-		cp -v $f/mshort/libiiomini.a $prefix/$target/lib/$f/mshort/
-	done
-	touch _libcmini-installed
+#		cp -v $f/libiiomini.a $prefix/$target/lib/$f/
+#		cp -v $f/mshort/libiiomini.a $prefix/$target/lib/$f/mshort/
+#	done
+	touch $builddir/_libcmini-installed
 fi
-fi
+exit;
 
 #---------------------------------------------------------------------------------
 # build and install portable math lib
@@ -502,7 +591,7 @@ if [ ! -f _gemlib-installed ]; then
 	# hotfix
 	sed_i "s:mt_event_mouse:mt_evnt_mouse:g" gemlib/gem.h
 
-	$MAKE OPTS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections" WARN="-Wall -Wextra -Wno-strict-aliasing" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
+	$MAKE OPTS="-O2 -fomit-frame-pointer" WARN="-Wall -Wextra -Wno-strict-aliasing" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
 	touch _gemlib-installed
 fi
 
