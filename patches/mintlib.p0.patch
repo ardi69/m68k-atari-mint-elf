@@ -1,6 +1,6 @@
 Index: include/bits/sched.h
 ===================================================================
---- include/bits/sched.h	(Revision 4)
+--- include/bits/sched.h	(Revision 702)
 +++ include/bits/sched.h	(Arbeitskopie)
 @@ -21,8 +21,9 @@
  #ifndef _SCHED_H
@@ -22,7 +22,7 @@ Index: include/bits/sched.h
 +#endif /* _BITS_SHED_H */
 Index: include/stdlib.h
 ===================================================================
---- include/stdlib.h	(Revision 4)
+--- include/stdlib.h	(Revision 702)
 +++ include/stdlib.h	(Arbeitskopie)
 @@ -81,7 +81,7 @@
  extern double strtod (__const char *__restrict __nptr,
@@ -42,87 +42,9 @@ Index: include/stdlib.h
  
  /* Convert a string to a long integer.  */
  extern long int strtol (__const char *__restrict __nptr,
-Index: login/login.c
-===================================================================
---- login/login.c	(Revision 4)
-+++ login/login.c	(Arbeitskopie)
-@@ -111,7 +111,7 @@
-       ttyp = basename (tty);
- 
-       /* Position to record for this tty.  */
--      strncpy (copy.ut_line, ttyp, UT_LINESIZE);
-+      strlcpy (copy.ut_line, ttyp, UT_LINESIZE);
- 
-       /* Tell that we want to use the UTMP file.  */
-       if (utmpname (_PATH_UTMP) == 0)
-Index: login/logout.c
-===================================================================
---- login/logout.c	(Revision 4)
-+++ login/logout.c	(Arbeitskopie)
-@@ -44,7 +44,7 @@
- #if _HAVE_UT_TYPE - 0
-   tmp.ut_type = USER_PROCESS;
- #endif
--  strncpy (tmp.ut_line, line, sizeof tmp.ut_line);
-+  strlcpy (tmp.ut_line, line, sizeof tmp.ut_line);
- 
-   /* Read the record.  */
-   if (getutline_r (&tmp, &utbuf, &ut) >= 0)
-Index: login/logwtmp.c
-===================================================================
---- login/logwtmp.c	(Revision 4)
-+++ login/logwtmp.c	(Arbeitskopie)
-@@ -41,10 +41,10 @@
- #if _HAVE_UT_TYPE - 0
-   ut.ut_type = name[0] ? USER_PROCESS : DEAD_PROCESS;
- #endif
--  strncpy (ut.ut_line, line, sizeof ut.ut_line);
--  strncpy (ut.ut_name, name, sizeof ut.ut_name);
-+  strlcpy (ut.ut_line, line, sizeof ut.ut_line);
-+  strlcpy (ut.ut_name, name, sizeof ut.ut_name);
- #if _HAVE_UT_HOST - 0
--  strncpy (ut.ut_host, host, sizeof ut.ut_host);
-+  strlcpy (ut.ut_host, host, sizeof ut.ut_host);
- #endif
- 
- #if _HAVE_UT_TV - 0
-Index: login/oldutmp.c
-===================================================================
---- login/oldutmp.c	(Revision 4)
-+++ login/oldutmp.c	(Arbeitskopie)
-@@ -57,9 +57,9 @@
- 	printf("counter = %d\nline = %s\nname = %s\nhost = %s\ntime = %lu\n",
- 		counter, line, name, host, time);
- #endif
--	strncpy(entry.ut_line, line, 8);
--	strncpy(entry.ut_name, name, 8);
--	strncpy(entry.ut_host, host, 16);
-+	strlcpy(entry.ut_line, line, 8);
-+	strlcpy(entry.ut_name, name, 8);
-+	strlcpy(entry.ut_host, host, 16);
- 	entry.ut_time = time;
- 
- 	if ((returned_val = write(fd, &entry, (unsigned) sizeof(struct utmp))) == -1)
-Index: login/oldwtmp.c
-===================================================================
---- login/oldwtmp.c	(Revision 4)
-+++ login/oldwtmp.c	(Arbeitskopie)
-@@ -34,9 +34,9 @@
-  * bytes strncpy adds the the strings if they are greater than 8/16 bytes!
-  */
- 
--	strncpy(entry.ut_line, line, 8);
--	strncpy(entry.ut_name, name, 8);
--	strncpy(entry.ut_host, host, 16);
-+	strlcpy(entry.ut_line, line, 8);
-+	strlcpy(entry.ut_name, name, 8);
-+	strlcpy(entry.ut_host, host, 16);
- 	entry.ut_time = time;
- 
- 	write(fd, &entry, (unsigned) sizeof(struct utmp));
 Index: mintlib/EXTRAFILES
 ===================================================================
---- mintlib/EXTRAFILES	(Revision 4)
+--- mintlib/EXTRAFILES	(Revision 702)
 +++ mintlib/EXTRAFILES	(Arbeitskopie)
 @@ -11,6 +11,7 @@
  _itoa.h math_private.h math_ldbl.h atomicity.h atomicity-68020.h errbase.h \
@@ -132,62 +54,9 @@ Index: mintlib/EXTRAFILES
  syscalls.h syscalls.list test-assert-perr.c test-assert.c test-atexit.c \
  test-atexit.expect test-ctype.c test-ctype1.c test-ctype1.expect \
  test-dirent.args test-dirent.c test-mallocbug.c test-seekdir.c test-setjmp.c \
-Index: mintlib/iflink.c
-===================================================================
---- mintlib/iflink.c	(Revision 4)
-+++ mintlib/iflink.c	(Arbeitskopie)
-@@ -34,7 +34,7 @@
- 		return -1;
- 	}
- 	_unx2dos (device, ifl.device, PATH_MAX);
--	strncpy (ifl.ifname, ifname, sizeof (ifl.ifname));
-+	strlcpy (ifl.ifname, ifname, sizeof (ifl.ifname));
- 	r = ioctl (sockfd, SIOCSIFLINK, &ifl);
- 	if (r < 0) {
- 		close (sockfd);
-@@ -41,7 +41,7 @@
- 		return -1;
- 	}
- 	close (sockfd);
--	strncpy (ifname, ifl.ifname, sizeof (ifl.ifname));
-+	strlcpy (ifname, ifl.ifname, sizeof (ifl.ifname));
- 	return 0;
- }
- 
-Index: mintlib/m68k_tp.c
-===================================================================
---- mintlib/m68k_tp.c	(nicht existent)
-+++ mintlib/m68k_tp.c	(Arbeitskopie)
-@@ -0,0 +1,26 @@
-+#include <compiler.h>
-+#include <stddef.h>	/* for size_t */
-+#include <stdlib.h>
-+#include <memory.h>
-+#include <string.h>
-+#include <assert.h>
-+#include <unistd.h>
-+#include <osbind.h>
-+#include "lib.h"
-+
-+void *
-+___m68k_read_tp() {
-+
-+
-+}
-+
-+weak_alias (___m68k_read_tp, __m68k_read_tp)
-+
-+//__dl_deallocate_tls
-+void
-+___m68k_write_tp(void * tp) {
-+
-+
-+}
-+
-+weak_alias (___m68k_write_tp, __m68k_write_tp)
 Index: mintlib/malloc.c
 ===================================================================
---- mintlib/malloc.c	(Revision 4)
+--- mintlib/malloc.c	(Revision 702)
 +++ mintlib/malloc.c	(Arbeitskopie)
 @@ -12,11 +12,11 @@
  #include <string.h>
@@ -283,7 +152,7 @@ Index: mintlib/malloc.c
  weak_alias(__free, free)
 Index: mintlib/realloc.c
 ===================================================================
---- mintlib/realloc.c	(Revision 4)
+--- mintlib/realloc.c	(Revision 702)
 +++ mintlib/realloc.c	(Arbeitskopie)
 @@ -9,10 +9,16 @@
  #include <string.h>
@@ -346,15 +215,3 @@ Index: mintlib/spin_lock.h
 +
 +
 +#endif /* _SPIN_LOCK_H */
-Index: mintlib/SRCFILES
-===================================================================
---- mintlib/SRCFILES	(Revision 4)
-+++ mintlib/SRCFILES	(Arbeitskopie)
-@@ -61,6 +61,7 @@
- 	localeconv.c \
- 	lockf.c \
- 	ltoa.c \
-+	m68k_tp.c \
- 	main.c \
- 	malloc.c \
- 	mcount.c \

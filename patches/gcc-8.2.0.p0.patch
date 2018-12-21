@@ -273,15 +273,7 @@ Index: gcc/config/m68k/m68k-protos.h
 ===================================================================
 --- gcc/config/m68k/m68k-protos.h	(Revision 4)
 +++ gcc/config/m68k/m68k-protos.h	(Arbeitskopie)
-@@ -64,6 +64,7 @@
- extern int valid_dbcc_comparison_p_2 (rtx, machine_mode);
- extern rtx m68k_libcall_value (machine_mode);
- extern rtx m68k_function_value (const_tree, const_tree);
-+extern rtx m68k_target_function_value (const_tree, const_tree, bool);
- extern int emit_move_sequence (rtx *, machine_mode, rtx);
- extern bool m68k_movem_pattern_p (rtx, rtx, HOST_WIDE_INT, bool);
- extern const char *m68k_output_movem (rtx *, rtx, HOST_WIDE_INT, bool);
-@@ -100,3 +101,15 @@
+@@ -100,3 +100,15 @@
  extern rtx m68k_legitimize_sibcall_address (rtx);
  extern int m68k_hard_regno_rename_ok(unsigned int, unsigned int);
  extern poly_int64 m68k_push_rounding (poly_int64);
@@ -292,7 +284,7 @@ Index: gcc/config/m68k/m68k-protos.h
 +//extern void m68k_function_arg_advance (CUMULATIVE_ARGS *);
 +//extern rtx m68k_function_arg (CUMULATIVE_ARGS *, enum machine_mode,
 +//			      const_tree, bool);
-+extern bool m68k_fastcall_function(const_tree fndecl_or_fntype);
++extern bool m68k_is_fastcall_function(const_tree fndecl_or_fntype);
 +extern void m68k_profile_function(FILE *file, int funcdef_no, unsigned long saved_regs);
 +#endif
 +#endif
@@ -317,7 +309,7 @@ Index: gcc/config/m68k/m68k.c
  static void m68k_conditional_register_usage (void);
  static bool m68k_legitimate_address_p (machine_mode, rtx, bool);
  static void m68k_option_override (void);
-@@ -163,10 +165,17 @@
+@@ -163,10 +165,18 @@
  static const char *singlemove_string (rtx *);
  static void m68k_output_mi_thunk (FILE *, tree, HOST_WIDE_INT,
  					  HOST_WIDE_INT, tree);
@@ -331,29 +323,33 @@ Index: gcc/config/m68k/m68k.c
 +					  bool *no_add_attrs);
 +static int m68k_comp_type_attributes (const_tree, const_tree);
 +static rtx m68k_static_chain (const_tree fndecl_or_type, bool incoming_p);
-+
++static rtx m68k_target_libcall_value (machine_mode, const_rtx);
++static rtx m68k_target_function_value (const_tree, const_tree, bool);
  static void m68k_compute_frame_layout (void);
  static bool m68k_save_reg (unsigned int regno, bool interrupt_handler);
  static bool m68k_ok_for_sibcall_p (tree, tree);
-@@ -187,6 +196,7 @@
+@@ -187,6 +197,9 @@
  static bool m68k_cannot_force_const_mem (machine_mode mode, rtx x);
  static bool m68k_output_addr_const_extra (FILE *, rtx);
  static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
 +static void m68k_finish_slb_export ();
++#endif
  static enum flt_eval_method
  m68k_excess_precision (enum excess_precision_type);
  static unsigned int m68k_hard_regno_nregs (unsigned int, machine_mode);
-@@ -230,6 +240,9 @@
+@@ -230,6 +243,10 @@
  #undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
  #define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_const_tree_hwi_hwi_const_tree_true
  
-+#undef TARGET_ASM_FILE_END
-+#define TARGET_ASM_FILE_END m68k_finish_slb_export
-+
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
++#	undef TARGET_ASM_FILE_END
++#	define TARGET_ASM_FILE_END m68k_finish_slb_export
++#endif
  #undef TARGET_ASM_FILE_START_APP_OFF
  #define TARGET_ASM_FILE_START_APP_OFF true
  
-@@ -277,7 +290,7 @@
+@@ -277,7 +294,7 @@
  #define TARGET_ATTRIBUTE_TABLE m68k_attribute_table
  
  #undef TARGET_PROMOTE_PROTOTYPES
@@ -362,7 +358,7 @@ Index: gcc/config/m68k/m68k.c
  
  #undef TARGET_STRUCT_VALUE_RTX
  #define TARGET_STRUCT_VALUE_RTX m68k_struct_value_rtx
-@@ -310,6 +323,9 @@
+@@ -310,6 +327,9 @@
  #undef TARGET_CAN_ELIMINATE
  #define TARGET_CAN_ELIMINATE m68k_can_eliminate
  
@@ -372,7 +368,7 @@ Index: gcc/config/m68k/m68k.c
  #undef TARGET_CONDITIONAL_REGISTER_USAGE
  #define TARGET_CONDITIONAL_REGISTER_USAGE m68k_conditional_register_usage
  
-@@ -352,8 +368,39 @@
+@@ -352,8 +372,37 @@
  #undef TARGET_PROMOTE_FUNCTION_MODE
  #define TARGET_PROMOTE_FUNCTION_MODE m68k_promote_function_mode
  
@@ -380,9 +376,15 @@ Index: gcc/config/m68k/m68k.c
 +#undef TARGET_STATIC_CHAIN
 +#define TARGET_STATIC_CHAIN m68k_static_chain
 +
++#undef TARGET_LIBCALL_VALUE
++#define TARGET_LIBCALL_VALUE m68k_target_libcall_value
++
++#undef TARGET_FUNCTION_VALUE
++#define TARGET_FUNCTION_VALUE m68k_target_function_value
++
 +static const struct attribute_spec::exclusions m68k_attr_shortcall_exclusions[] =
  {
-+  { "loncall", true, true, true },
++  { "longcall", true, true, true },
 +  { NULL, false, false, false },
 +};
 +static const struct attribute_spec::exclusions m68k_attr_longcall_exclusions[] =
@@ -393,19 +395,11 @@ Index: gcc/config/m68k/m68k.c
 +static const struct attribute_spec::exclusions m68k_attr_fastcall_exclusions[] =
 +{
 +  { "stkparm", true, true, true },
-+  { "regparm", true, true, true },
 +  { NULL, false, false, false },
 +};
 +static const struct attribute_spec::exclusions m68k_attr_stkparm_exclusions[] =
 +{
 +  { "fastcall", true, true, true },
-+  { "regparm", true, true, true },
-+  { NULL, false, false, false },
-+};
-+static const struct attribute_spec::exclusions m68k_attr_regparm_exclusions[] =
-+{
-+  { "fastcall", true, true, true },
-+  { "stkparm", true, true, true },
 +  { NULL, false, false, false },
 +};
 +static struct attribute_spec m68k_attribute_table[] =
@@ -413,24 +407,23 @@ Index: gcc/config/m68k/m68k.c
    /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
         affects_type_identity, handler, exclude } */
    { "interrupt", 0, 0, true,  false, false, false,
-@@ -362,9 +409,44 @@
+@@ -362,9 +411,38 @@
      m68k_handle_fndecl_attribute, NULL },
    { "interrupt_thread", 0, 0, true,  false, false, false,
      m68k_handle_fndecl_attribute, NULL },
 +
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
 +  { "slb_export", 1, 1, true, false, false, false,
 +    m68k_handle_fndecl_attribute, NULL },
-+
++#endif
 +  { "shortcall", 0, 0, false, true, true, true,
-+    m68k_handle_fntype_attribute, NULL },
-+  { "longcall", 0, 0, false, true, true, false,
-+    m68k_handle_fntype_attribute, NULL },
++    m68k_handle_fntype_attribute, m68k_attr_shortcall_exclusions },
++  { "longcall", 0, 0, false, true, true, true,
++    m68k_handle_fntype_attribute, m68k_attr_longcall_exclusions },
 +  { "fastcall", 0, 0, false, true, true, true,
 +    m68k_handle_fntype_attribute, m68k_attr_fastcall_exclusions },
-+  { "stkparm", 0, 0, false, true, true, false,
++  { "stkparm", 0, 0, false, true, true, true,
 +    m68k_handle_fntype_attribute, m68k_attr_stkparm_exclusions },
-+  { "regparm", 0, 1, false, true, true, true,
-+    m68k_handle_fntype_attribute, m68k_attr_regparm_exclusions },
    { NULL, 0, 0, false, false, false, false, NULL, NULL }
  };
  
@@ -442,15 +435,10 @@ Index: gcc/config/m68k/m68k.c
 +	return ret;
 +}
 +static void m68k_init_attribute_spec() {
-+//printf("init attribute spec\n");
-+	if(TARGET_SHORT) {
-+		m68_lookup_attribute_spec("shortcall")->affects_type_identity = false;
-+		m68_lookup_attribute_spec("longcall")->affects_type_identity = true;
-+	}
-+	if(TARGET_FASTCALL) {
-+		m68_lookup_attribute_spec("fastcall")->affects_type_identity = false;
-+		m68_lookup_attribute_spec("stkparm")->affects_type_identity = true;
-+	}
++	m68_lookup_attribute_spec("shortcall")->affects_type_identity = !TARGET_SHORT;
++	m68_lookup_attribute_spec("longcall")->affects_type_identity = TARGET_SHORT;
++	m68_lookup_attribute_spec("fastcall")->affects_type_identity = !TARGET_FASTCALL;
++	m68_lookup_attribute_spec("stkparm")->affects_type_identity = TARGET_FASTCALL;
 +}
 +#undef TARGET_COMP_TYPE_ATTRIBUTES
 +#define TARGET_COMP_TYPE_ATTRIBUTES m68k_comp_type_attributes
@@ -458,10 +446,11 @@ Index: gcc/config/m68k/m68k.c
  struct gcc_target targetm = TARGET_INITIALIZER;
  
  /* Base flags for 68k ISAs.  */
-@@ -767,8 +849,18 @@
+@@ -767,8 +845,20 @@
    return m68k_fk_normal_function;
  }
  
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
 +static HOST_WIDE_INT
 +m68k_get_slb_export_slot(tree fndecl) {
 +  tree slb_export = lookup_attribute ("slb_export", DECL_ATTRIBUTES (fndecl));
@@ -470,6 +459,7 @@ Index: gcc/config/m68k/m68k.c
 +  }
 +  return -1;
 +}
++#endif
 +
  /* Handle an attribute requiring a FUNCTION_DECL; arguments as in
     struct attribute_spec.handler.  */
@@ -477,11 +467,12 @@ Index: gcc/config/m68k/m68k.c
  static tree
  m68k_handle_fndecl_attribute (tree *node, tree name,
  			      tree args ATTRIBUTE_UNUSED,
-@@ -782,6 +874,27 @@
+@@ -782,6 +872,29 @@
        *no_add_attrs = true;
      }
  
-+  if (!strcmp (IDENTIFIER_POINTER (name), "slb_export")) {
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
++  if (is_attribute_p("slb_export", name)) {
 +    if(TREE_CODE (TREE_TYPE (*node)) == FUNCTION_TYPE && decl_function_context (*node) == 0) {
 +      tree arg;
 +      arg = TREE_VALUE (args);
@@ -491,7 +482,7 @@ Index: gcc/config/m68k/m68k.c
 +      } else {
 +        HOST_WIDE_INT val = int_cst_value(arg);
 +        if ( 0 > val || val > 1023) {
-+          warning (OPT_Wattributes, "`%qE' invalid slb_export slot (get %i but must be beetween 0 and 1023) --> attribute ignored", name, (int)val);
++          warning (OPT_Wattributes, "`%qE' invalid slb_export slot (got %i but must be beetween 0 and 1023) --> attribute ignored", name, (int)val);
 +          *no_add_attrs = true;
 +        }
 +      }
@@ -501,11 +492,12 @@ Index: gcc/config/m68k/m68k.c
 +    }
 +    return NULL_TREE;
 +  }
++#endif
 +
    if (m68k_get_function_kind (*node) != m68k_fk_normal_function)
      {
        error ("multiple interrupt attributes not allowed");
-@@ -798,7 +911,141 @@
+@@ -798,7 +911,143 @@
    return NULL_TREE;
  }
  
@@ -521,27 +513,27 @@ Index: gcc/config/m68k/m68k.c
 +
 +	if (TREE_CODE (*node) != FUNCTION_TYPE && TREE_CODE (*node) != METHOD_TYPE)
 +	{
-+		warning (OPT_Wattributes, "`%qE' only applies to functions", name);
++		warning (OPT_Wattributes, "attribute '%qE' only applies to functions", name);
 +		*no_add_attrs = true;
-+	} else if (is_attribute_p ("shortcall", name)) {
-+		if(lang_GNU_CXX()) {
-+			warning (OPT_Wattributes, "`%qE' is currently not available for c++ ", name);
++	} else if (is_attribute_p ("shortcall", name) || is_attribute_p ("longcall", name)) {
++		if(lang_GNU_CXX() && TARGET_SHORT != is_attribute_p ("shortcall", name)) {
++			warning (OPT_Wattributes, "ignore attribute '%qE' because it's currently not supported by c++", name);
 +			*no_add_attrs = true;
 +		}
 +	}
++
 +	return NULL_TREE;
 +}
 +
 +/* Return true if the function use the fastcall abi */
-+bool m68k_fastcall_function(const_tree fndecl_or_type) {
++bool m68k_is_fastcall_function(const_tree fndecl_or_type) {
 +	if (!fndecl_or_type) return TARGET_FASTCALL;
 +//	printf("%S TREE_CODE (fndecl_or_type) %i == FUNCTION_DECL %i\n", __FUNCTION__, TREE_CODE (fndecl_or_type), FUNCTION_DECL);
 +	if (TREE_CODE (fndecl_or_type) == FUNCTION_DECL) fndecl_or_type = TREE_TYPE (fndecl_or_type);
 +//	printf("%S TREE_CODE (fndecl_or_type) %i == FUNCTION_TYPE %i\n", __FUNCTION__, TREE_CODE (fndecl_or_type), FUNCTION_TYPE);
-+	return ((TARGET_FASTCALL && !lookup_attribute ("stkparm", TYPE_ATTRIBUTES (fndecl_or_type)) && !lookup_attribute ("regparm", TYPE_ATTRIBUTES (fndecl_or_type)))
++	return ((TARGET_FASTCALL && !lookup_attribute ("stkparm", TYPE_ATTRIBUTES (fndecl_or_type)))
 +			|| (!TARGET_FASTCALL && lookup_attribute ("fastcall", TYPE_ATTRIBUTES (fndecl_or_type))));
 +}
-+
 +
 +/* Return zero if the attributes on TYPE1 and TYPE2 are incompatible,
 +   one if they are compatible, and two if they are nearly compatible
@@ -560,13 +552,12 @@ Index: gcc/config/m68k/m68k.c
 +
 +static
 +rtx m68k_static_chain (const_tree fndecl_or_type, bool incoming_p) {
-+	if(m68k_fastcall_function(fndecl_or_type))
++	if(m68k_is_fastcall_function(fndecl_or_type))
 +		return gen_rtx_REG (Pmode, M68K_FASTCALL_STATIC_CHAIN_REGNUM);
 +	return default_static_chain (fndecl_or_type, incoming_p);
 +}
 +
-+
-+
++#ifdef TARGET_SHARED // TARGET_SHARED / slb_export is MiNT related
 +static char m68k_slb_export_tab[128];
 +static int m68k_slb_export_tab_max=-1;
 +
@@ -600,6 +591,9 @@ Index: gcc/config/m68k/m68k.c
 +  HOST_WIDE_INT slot = m68k_get_slb_export_slot(fndecl);
 +  if(slot<0) return;
 +
++  if (m68k_is_fastcall_function(fndecl)) /* ToDo: demangle name */
++    warning (OPT_Wattributes, "slb_export(%i) '%s' should not be fastcall", (int)slot, name);
++
 +  if(m68k_slb_export_tab_max == -1) memset(m68k_slb_export_tab, 0, sizeof(m68k_slb_export_tab));
 +  if(m68k_slb_export_tab_max < slot) m68k_slb_export_tab_max = slot;
 +  m68k_slb_export_tab[slot >> 3] |= (1 << (slot & 0x07));
@@ -616,7 +610,7 @@ Index: gcc/config/m68k/m68k.c
 +  assemble_align (POINTER_SIZE);
 +  fprintf (asm_out_file, "\t.long %s\n", label);
 +}
-+
++#endif
 +
 +/* Initialize a variable CUM of type CUMULATIVE_ARGS
 +   for a call to a function whose data type is FNTYPE.
@@ -628,7 +622,7 @@ Index: gcc/config/m68k/m68k.c
 +{
 +//printf("%s fntype==NULL -> %s\n", __FUNCTION__, fntype ? "no":"yes");
 +//if(fntype) printf("%s DECL_STATIC_CHAIN (fntype) = %i\n", __FUNCTION__, DECL_STATIC_CHAIN (fntype));
-+//printf("%s m68k_fastcall_function (fntype) = %i\n", __FUNCTION__, m68k_fastcall_function (fntype));
++//printf("%s m68k_is_fastcall_function (fntype) = %i\n", __FUNCTION__, m68k_is_fastcall_function (fntype));
 +  cum->last_arg_reg = -1;
 +  cum->regs_already_used = 0;
 +  cum->fntype = fntype;
@@ -647,7 +641,20 @@ Index: gcc/config/m68k/m68k.c
  m68k_compute_frame_layout (void)
  {
    int regno, saved;
-@@ -1454,7 +1701,7 @@
+@@ -1427,9 +1676,9 @@
+       rtx cfun_value;
+       rtx call_value;
+ 
+-      cfun_value = FUNCTION_VALUE (TREE_TYPE (DECL_RESULT (cfun->decl)),
+-				   cfun->decl);
+-      call_value = FUNCTION_VALUE (TREE_TYPE (exp), decl);
++      cfun_value = TARGET_FUNCTION_VALUE (TREE_TYPE (DECL_RESULT (cfun->decl)),
++				   cfun->decl, false);
++      call_value = TARGET_FUNCTION_VALUE (TREE_TYPE (exp), decl, true);
+ 
+       /* Check that the values are equal or that the result the callee
+ 	 function returns is superset of what the current function returns.  */
+@@ -1454,7 +1703,7 @@
  }
  
  /* On the m68k all args are always pushed.  */
@@ -656,7 +663,7 @@ Index: gcc/config/m68k/m68k.c
  static rtx
  m68k_function_arg (cumulative_args_t cum ATTRIBUTE_UNUSED,
  		   machine_mode mode ATTRIBUTE_UNUSED,
-@@ -1463,7 +1710,89 @@
+@@ -1463,7 +1712,89 @@
  {
    return NULL_RTX;
  }
@@ -679,7 +686,7 @@ Index: gcc/config/m68k/m68k.c
 +	CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 +	//printf("%s %p %p\n", __FUNCTION__, (void*)TREE_TYPE (current_function_decl), (void*)cum->fntype);
 +
-+	if(m68k_fastcall_function(cum->fntype))
++	if(m68k_is_fastcall_function(cum->fntype))
 +	{
 +		int regbegin = -1, regend, len;
 +
@@ -714,6 +721,9 @@ Index: gcc/config/m68k/m68k.c
 +			regend = regbegin + M68K_FASTCALL_DATA_PARM;
 +		}
 +
++		if (!named)
++			cum->regs_already_used = -1;
++
 +		if (regbegin != -1)
 +		{
 +			int reg;
@@ -729,9 +739,6 @@ Index: gcc/config/m68k/m68k.c
 +			}
 +		}
 +
-+		if (!named)
-+			cum->regs_already_used = -1;
-+
 +		if (cum->last_arg_reg != -1)
 +		{
 +			//printf("%s %i\n", __FUNCTION__, cum->last_arg_reg);
@@ -746,7 +753,7 @@ Index: gcc/config/m68k/m68k.c
  static void
  m68k_function_arg_advance (cumulative_args_t cum_v, machine_mode mode,
  			   const_tree type, bool named ATTRIBUTE_UNUSED)
-@@ -1474,7 +1803,86 @@
+@@ -1474,7 +1805,86 @@
  	   ? (GET_MODE_SIZE (mode) + 3) & ~3
  	   : (int_size_in_bytes (type) + 3) & ~3);
  }
@@ -833,36 +840,70 @@ Index: gcc/config/m68k/m68k.c
  /* Convert X to a legitimate function call memory reference and return the
     result.  */
  
-@@ -5159,6 +5567,12 @@
+@@ -5159,6 +5569,12 @@
      SET_REGNO (pic_offset_table_rtx, PIC_REG);
  }
  
 +static bool
 +m68k_promote_prototypes (const_tree t ATTRIBUTE_UNUSED)
 +{
-+    return !TARGET_FASTCALL;
++	return true; /// TODO ??? return !TARGET_FASTCALL;
 +}
 +
  /* Worker function for TARGET_STRUCT_VALUE_RTX.  */
  
  static rtx
-@@ -5165,6 +5579,8 @@
+@@ -5165,6 +5581,8 @@
  m68k_struct_value_rtx (tree fntype ATTRIBUTE_UNUSED,
  		       int incoming ATTRIBUTE_UNUSED)
  {
-+//	if(m68k_fastcall_function(fntype))
++//	if(m68k_is_fastcall_function(fntype))
 +//		return gen_rtx_REG (Pmode, M68K_FASTCALL_STRUCT_VALUE_REGNUM);
    return gen_rtx_REG (Pmode, M68K_STRUCT_VALUE_REGNUM);
  }
  
-@@ -5369,6 +5785,66 @@
+@@ -5325,6 +5743,33 @@
+   return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
+ }
+ 
++rtx
++m68k_target_libcall_value (machine_mode mode, const_rtx fun ATTRIBUTE_UNUSED) {
++#ifdef M68K_TARGET_LIBCALL_VALUE
++	return M68K_TARGET_LIBCALL_VALUE(mode, const_rtx fun);
++#else
++	if (TARGET_FASTCALL) {
++//		printf("------------\n%s %i\n", __FUNCTION__, (int)mode);
++//		if (fun) printf("------------\n%s %s\n", __FUNCTION__, XSTR (fun, 0));
++		switch (mode) {
++		case E_XFmode:
++			if (!TARGET_68881) break;
++			__attribute__ ((fallthrough));
++		case E_SFmode:
++		case E_DFmode:
++			if(TARGET_HARD_FLOAT)
++				return gen_rtx_REG (mode, FP0_REG);
++			break;
++		default:
++			break;
++		}
++		return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
++	} else
++		return LIBCALL_VALUE (mode);
++#endif
++}
++
++
+ /* Location in which function value is returned.
+    NOTE: Due to differences in ABIs, don't call this function directly,
+    use FUNCTION_VALUE instead.  */
+@@ -5369,6 +5814,66 @@
      return gen_rtx_REG (mode, D0_REG);
  }
  
 +rtx
 +m68k_target_function_value (const_tree valtype, const_tree fn_decl_or_type, bool outgoing ATTRIBUTE_UNUSED) {
 +	//printf("-----------------%s\n",__FUNCTION__);
-+	if (m68k_fastcall_function(fn_decl_or_type)) {
++	if (m68k_is_fastcall_function(fn_decl_or_type)) {
 +		machine_mode mode;
 +		mode = TYPE_MODE (valtype);
 +		switch (mode) {
@@ -922,7 +963,7 @@ Index: gcc/config/m68k/m68k.c
  /* Worker function for TARGET_RETURN_IN_MEMORY.  */
  #if M68K_HONOR_TARGET_STRICT_ALIGNMENT
  static bool
-@@ -5391,6 +5867,66 @@
+@@ -5391,6 +5896,66 @@
  }
  #endif
  
@@ -946,11 +987,11 @@ Index: gcc/config/m68k/m68k.c
 +			printf("%s to ", name ? IDENTIFIER_POINTER(name): "noname");
 +		}else printf ("none to ");
 +		tree name = DECL_NAME (fndecl);
-+		printf("%s fastcall=%i", name ? IDENTIFIER_POINTER(name): "noname", m68k_fastcall_function(fndecl));
++		printf("%s fastcall=%i", name ? IDENTIFIER_POINTER(name): "noname", m68k_is_fastcall_function(fndecl));
 +		printf(" static chain=%i (%p)\n", DECL_STATIC_CHAIN (fndecl), (void*)TREE_TYPE(fndecl));
 +#endif
-+		bool prev_is_fastcall = m68k_fastcall_function(m68k_previous_fndecl);
-+		bool curr_is_fastcall = m68k_fastcall_function(fndecl);
++		bool prev_is_fastcall = m68k_is_fastcall_function(m68k_previous_fndecl);
++		bool curr_is_fastcall = m68k_is_fastcall_function(fndecl);
 +
 +		if(prev_is_fastcall != curr_is_fastcall) {
 +			bool switch_fastcall = false;
@@ -989,7 +1030,7 @@ Index: gcc/config/m68k/m68k.c
  /* CPU to schedule the program for.  */
  enum attr_cpu m68k_sched_cpu;
  
-@@ -6504,8 +7040,16 @@
+@@ -6504,8 +7069,16 @@
  /* We generate a two-instructions program at M_TRAMP :
  	movea.l &CHAIN_VALUE,%a0
  	jmp FNADDR
@@ -1007,14 +1048,14 @@ Index: gcc/config/m68k/m68k.c
  static void
  m68k_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
  {
-@@ -6513,16 +7057,26 @@
+@@ -6513,16 +7086,26 @@
    rtx mem;
  
    gcc_assert (ADDRESS_REGNO_P (STATIC_CHAIN_REGNUM));
 -
 -  mem = adjust_address (m_tramp, HImode, 0);
 +  int adjust = 0;
-+  bool is_fastcall = m68k_fastcall_function(fndecl);
++  bool is_fastcall = m68k_is_fastcall_function(fndecl);
 +  if (is_fastcall) {
 +  	mem = adjust_address (m_tramp, HImode, adjust);
 +  	emit_move_insn (mem, GEN_INT(0x2F08 + (STATIC_CHAIN_REGNUM-8))); // move.l STATIC_CHAIN_REGNUM, -(sp)
@@ -1040,7 +1081,7 @@ Index: gcc/config/m68k/m68k.c
  
    FINALIZE_TRAMPOLINE (XEXP (m_tramp, 0));
  }
-@@ -6555,6 +7109,37 @@
+@@ -6555,6 +7138,37 @@
  m68k_conditional_register_usage (void)
  {
    int i;
@@ -1078,7 +1119,7 @@ Index: gcc/config/m68k/m68k.c
    HARD_REG_SET x;
    if (!TARGET_HARD_FLOAT)
      {
-@@ -6566,7 +7151,9 @@
+@@ -6566,7 +7180,9 @@
    if (flag_pic)
      fixed_regs[PIC_REG] = call_used_regs[PIC_REG] = 1;
  }
@@ -1115,19 +1156,20 @@ Index: gcc/config/m68k/m68k.h
        if (TARGET_COLDFIRE)						\
  	{								\
  	  const char *tmp;						\
-@@ -193,6 +206,11 @@
+@@ -193,6 +206,12 @@
  									\
        builtin_assert ("cpu=m68k");					\
        builtin_assert ("machine=m68k");					\
++																		\
++      builtin_define ("__longcall=__attribute__((longcall))");			\
 +      builtin_define ("__shortcall=__attribute__((shortcall))");		\
-+      builtin_define ("__longcall=__attribute__((longcall))");		\
-+      builtin_define ("__fastcall=__attribute__((fastcall))");		\
-+      builtin_define ("__cdecl=__attribute__((stkparm))");		\
-+      builtin_define ("cdecl=__attribute__((stkparm))");		\
++      builtin_define ("__fastcall=__attribute__((fastcall))");			\
++      builtin_define ("__CDECL=__attribute__((stkparm))");				\
++      builtin_define ("cdecl=__attribute__((stkparm))");				\
      }									\
    while (0)
  
-@@ -408,6 +426,7 @@
+@@ -408,6 +427,7 @@
  
  #define STATIC_CHAIN_REGNUM A0_REG
  #define M68K_STATIC_CHAIN_REG_NAME REGISTER_PREFIX "a0"
@@ -1135,21 +1177,16 @@ Index: gcc/config/m68k/m68k.h
  
  /* Register in which address to store a structure value
     is passed to a function.  */
-@@ -470,17 +489,22 @@
+@@ -470,7 +490,7 @@
  
  #define PUSH_ROUNDING(BYTES) m68k_push_rounding (BYTES)
  
 -#define FIRST_PARM_OFFSET(FNDECL) 8
-+#define FIRST_PARM_OFFSET(FNDECL) (DECL_STATIC_CHAIN (FNDECL) && m68k_fastcall_function(FNDECL) ? 16 : 8)
++#define FIRST_PARM_OFFSET(FNDECL) (DECL_STATIC_CHAIN (FNDECL) && m68k_is_fastcall_function(FNDECL) ? 16 : 8)
  
  /* On the m68k the return value defaults to D0.  */
  #define FUNCTION_VALUE(VALTYPE, FUNC)  \
-   gen_rtx_REG (TYPE_MODE (VALTYPE), D0_REG)
- 
-+#undef TARGET_FUNCTION_VALUE
-+#define TARGET_FUNCTION_VALUE m68k_target_function_value
-+
- /* On the m68k the return value defaults to D0.  */
+@@ -480,7 +500,9 @@
  #define LIBCALL_VALUE(MODE)  gen_rtx_REG (MODE, D0_REG)
  
  /* On the m68k, D0 is usually the only register used.  */
@@ -1160,7 +1197,7 @@ Index: gcc/config/m68k/m68k.h
  
  /* Define this to be true when FUNCTION_VALUE_REGNO_P is true for
     more than one register.
-@@ -488,17 +512,72 @@
+@@ -488,17 +510,72 @@
  #define NEEDS_UNTYPED_CALL 0
  
  /* On the m68k, all arguments are usually pushed on the stack.  */
@@ -1240,7 +1277,7 @@ Index: gcc/config/m68k/m68k.h
    asm_fprintf (FILE, "\tlea %LLP%d,%Ra0\n\tjsr mcount\n", (LABELNO))
  
  #define EXIT_IGNORE_STACK 1
-@@ -523,7 +602,7 @@
+@@ -523,7 +600,7 @@
     Since more instructions are required to move a template into
     place than to create it on the spot, don't use a template.  */
  
@@ -1249,7 +1286,7 @@ Index: gcc/config/m68k/m68k.h
  #define TRAMPOLINE_ALIGNMENT 16
  
  /* Targets redefine this to invoke code to either flush the cache,
-@@ -545,6 +624,8 @@
+@@ -545,6 +622,8 @@
     (though the operand list is empty).  */
  #define TRANSFER_FROM_TRAMPOLINE				\
  void								\
@@ -1258,7 +1295,7 @@ Index: gcc/config/m68k/m68k.h
  __transfer_from_trampoline ()					\
  {								\
    register char *a0 asm (M68K_STATIC_CHAIN_REG_NAME);		\
-@@ -947,4 +1028,6 @@
+@@ -947,4 +1026,6 @@
  extern int m68k_sched_address_bypass_p (rtx_insn *, rtx_insn *);
  extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
  
@@ -1605,7 +1642,7 @@ Index: gcc/config/m68k/mint.h
 ===================================================================
 --- gcc/config/m68k/mint.h	(nicht existent)
 +++ gcc/config/m68k/mint.h	(Arbeitskopie)
-@@ -0,0 +1,322 @@
+@@ -0,0 +1,320 @@
 +/* Definitions of target machine for GNU compiler.
 +   Atari ST TOS/MiNT.
 +   Copyright (C) 1994, 1995, 2007, 2008, 2009, 2010, 2011
@@ -1861,24 +1898,22 @@ Index: gcc/config/m68k/mint.h
 +
 +#define CLEAR_INSN_CACHE(BEG, END)									\
 +{																	\
-+	static long available = 0;										\
-+	if (available < 0 /* ENOSYS*/) return;							\
-+	register long ret __asm__("%d0");								\
++	extern long __has_no_ssystem;									\
++	if (__has_no_ssystem) return;									\
 +	register long _BEG __asm__("%a0") = (long) BEG;					\
 +	register long _END __asm__("%a1") = (long) END;					\
 +	__asm__ volatile												\
 +  	(																\
-+ 		"subl	%1, %2\n\t"											\
-+ 		"movl	%2,sp@-\n\t"										\
-+  		"movl	%1,sp@-\n\t"										\
++ 		"subl	%0, %1\n\t"											\
++ 		"movl	%1,sp@-\n\t"										\
++  		"movl	%0,sp@-\n\t"										\
 +  		"movl	#(340<<16)+16,sp@-\n\t" /* SSystem(S_FLUSHCACHE, ... ) */	\
 +  		"trap	#1\n\t"					/* Gemdos call */			\
 +  		"lea	sp@(12),sp"											\
-+  	: "=r" (ret), "+a"(_BEG), "+a"((_END))							\
++  	: "+a"(_BEG), "+a"((_END))										\
 +  	:  /* inputs  */	\
-+  	:  "d1", "d2", "a2"    /* clobbered regs */			\
++  	:  "d0", "d1", "d2", "a2"    /* clobbered regs */			\
 +  	);																\
-+	available = ret;												\
 +}
 +
 +/* ColdFire and fido strongly prefer a 32-bit aligned stack.  */

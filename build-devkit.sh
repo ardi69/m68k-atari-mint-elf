@@ -106,10 +106,11 @@ GCC_SRC="gcc-$GCC_VER"
 #GDB_URL=
 #GDB_SRC="gdb-$GDB_VER"
 
-MINTLIB_VER="master"
+MINTLIB_VER="3850d273937f638c8a1ba37ddc34050abbc75354"
 MINTLIB_ARC="mintlib-$MINTLIB_VER.tar.gz"
 MINTLIB_URL="https://github.com/freemint/mintlib/archive/$MINTLIB_VER.tar.gz"
-MINTLIB_SRC="mintlib-$MINTLIB_VER"
+MINTLIB_SRCX="mintlib-$MINTLIB_VER"
+MINTLIB_SRC="mintlib"
 
 FDLIBM_VER="a159b62fc20f3ff5f1a268a4870aaf117d9c17d1"
 FDLIBM_ARC="fdlibm-$FDLIBM_VER.tar.gz"
@@ -126,11 +127,12 @@ PMLLIB_ARC="pml-$PMLLIB_VER.tar.bz2"
 PMLLIB_URL=
 PMLLIB_SRC="pml-$PMLLIB_VER"
 
-GEMLIB_VER="b3f84206c2e05d7a589ee5d90bcf4eb1601887c2"
+GEMLIB_VER="d57cebf1d47d9d16507c0530eed4665bcb6ea160"
 #GEMLIB_VER="6df3f962ff80c674443a0bc0335fc0c6a56b6598" # 0_44_0
 GEMLIB_ARC="gemlib-$GEMLIB_VER.tar.gz"
 GEMLIB_URL="https://github.com/freemint/lib/archive/$GEMLIB_VER.tar.gz"
-GEMLIB_SRC="lib-$GEMLIB_VER"
+GEMLIB_SRCX="gemlib-$GEMLIB_VER"
+GEMLIB_SRC="gemlib"
 
 
 PACKAGE_LIST="BINUTILS GMP MPFR MPC ISL ICONV GCC GDB MINTLIB FDLIBM LIBCMINI GEMLIB"
@@ -244,6 +246,7 @@ fi
 
 function extract_package() {
 	local arc=${1}_ARC; arc=${!arc}
+	local srcx=${1}_SRCX; srcx=${!srcx}
 	local src=${1}_SRC; src=${!src}
 	local patchfile=${1}_PATCH; patchfile=${!patchfile}
 	local patch
@@ -267,6 +270,7 @@ function extract_package() {
 			exit 1
 			;;
 		esac
+		[ ! -z $srcx ] && [ -d $srcx ] && [ ! -d $src ] && mv $srcx $src
 		[ ! -d $src ] && { echo "$arc extracted but `pwd`/$src not found"; exit 1; }
 		touch $src/extracted
 	fi

@@ -504,19 +504,19 @@ Index: ld/scripttempl/m68kmint.sc
 +    ___TLS_DATA__ = .;
 +    *(.tdata) *(.tdata.*)
 +    . = ALIGN(2);
-+    ___TLS_DATA_SIZE = . - ___TLS_DATA_BEGIN__;
++    ___TLS_DATA_SIZE__ = . - ___TLS_DATA__;
 +  }
 +  .tbss . : SUBALIGN(4)
 +  {
 +     *(.tbss) *(.tbss.*)
-+    ___TLS_SIZE__ = . - ___TLS_DATA_BEGIN__;
++    ___TLS_SIZE__ = . - ___TLS_DATA__;
 +  }
 +  .bss . : SUBALIGN(2)
 +  {
 +    ${RELOCATING+.bss_start = .;}
 +    *(.bss) *(COMMON) *(.bss.*) *(.gnu.linkonce.b.*)
 +    . = ALIGN(4);
-+    ${RELOCATING+___main_tls = .;}
++    ${RELOCATING+___tls_main = .;}
 +    . = . + ___TLS_SIZE__;
 +    . = ALIGN(2);
 +    ${RELOCATING+_end = .;}
