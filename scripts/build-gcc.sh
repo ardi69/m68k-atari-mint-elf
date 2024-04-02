@@ -364,15 +364,15 @@ if [ ! -f $builddir/_gcc-stage1-build ]; then
 	rm -f $builddir/_gcc-stage1-installed
 #	touch ../../src/$GCC_SRC/gcc/genmultilib
 	cd gcc
-	# rm -f s-mlib multilib.h
-	# build and patch multilib.h
+	#rm -f s-mlib multilib.h
+	#echo build and patch multilib.h
 	$MAKE multilib.h
 	sed -E -i \
-		-e "s:^\"\. (.*) \!msoft-float( .*):\"m68000 \1\2:" \
-		-e "s:^\"(mshort|fastcall)(.*) \!msoft-float( .*):\"m68000/\1\2\3:" \
-		-e "s:^\"mshort (.*):\"m68000 \1\"m68000/mshort \1:" \
-		-e "s:^\"m68000 ([^;]*) mshort:\"m68000 \1 \!mshort:" \
-		-e "s:^\"(fastcall.*):\"m68000/\1:" \
+		-e 's:^"\. (.*) !msoft-float( .*):"m68000 \1\2:' \
+		-e 's:^"(mshort|fastcall)(.*) \!msoft-float( .*):"m68000/\1\2\3:' \
+		-e 's:^"mshort (m68020-60.*):\"m68000 \1"m68000/mshort \1:' \
+		-e 's:^"m68000 ([^;]*) mshort:"m68000 \1 \!mshort:' \
+		-e 's:^"(fastcall.*):"m68000/\1:' \
 		multilib.h
 	cd ..
 	$MAKE all-gcc || { echo "Error building gcc stage1"; exit 1; }
@@ -412,26 +412,6 @@ if [ ! -f $builddir/_multilib-dirs-created ]; then
 		done
 	done
 	touch $builddir/_multilib-dirs-created
-fi
-#---------------------------------------------------------------------------------
-# install crt0 & faket libc
-# for configuring libgcc crt0 and libc is needed
-# but vor building mintlib aka libc -> libgcc is needed
-# we build crt0 and a faked libc
-#---------------------------------------------------------------------------------
-
-if [ 0 -eq 1 ]; then
-
-echo "create & install crt0"
-	for ml in `$prefix/bin/$target-gcc -print-multi-lib`; do
-		ml_path=`echo $ml | sed -e "s/;.*$//"`
-		ml_opt=`echo $ml | sed -e "s/^.*;//" | sed -e "s/@/ -/g"`
-		CMD1="$prefix/bin/$target-gcc $ml_opt -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/crt0.o"
-		CMD2="$prefix/bin/$target-gcc $ml_opt -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/gcrt0.o"
-		echo "$CMD1 && $CMD2"
-		$CMD1 && $CMD2 || { echo "Error installing crt0.o for $ml_opt"; exit 1; }
-	done
-
 fi
 
 #---------------------------------------------------------------------------------
@@ -480,33 +460,31 @@ unset CFLAGS
 #---------------------------------------------------------------------------------
 # build and install mintlib
 #---------------------------------------------------------------------------------
-if [ 0 -eq 1 ]; then # temporary disabled
 
 cd $srcdir/$MINTLIB_SRC
 
-if [ ! -f includepath ]; then
-	$MAKE -C lib CROSS=yes ../includepath || { echo "Error fixup includepath"; exit 1; }
-	cat includepath | sed -r -e 's/\\/\//g' -e 's/^([^:]+):/\/\1/' > includepath.sed && mv -f includepath.sed includepath || { echo "Error fixup includepath"; exit 1; }
+
+if [ ! -f $builddir/_mintlib-build ]; then
+	rm -f $builddir/_mintlib-installed
+#CFLAGS="-O2 -std=gnu89 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-nonnull-compare"
+	$MAKE "WARN=-Wall -Wextra -Werror" EXTRA_CFLAGS="-ffunction-sections -fdata-sections" CROSS=yes prefix=$prefix/$target || { echo "Error building mintlib"; exit 1; }
+	touch $builddir/_mintlib-build
 fi
 
-if [ ! -f _mintlib-build ]; then
-	$MAKE CFLAGS="-O2 -std=gnu89 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-nonnull-compare" CROSS=yes prefix=$prefix/$target || { echo "Error building mintlib"; exit 1; }
-	touch _mintlib-build
-fi
+if [ ! -f $builddir/_mintlib-installed ]; then
+	$MAKE CROSS=yes prefix=$prefix/$target install || { echo "Error building mintlib"; exit 1; }
+	# crt0.o & gcrt0.o are designed cpu independent. But ld don't allows linking o-files of incompatible targets.
+	# so we create it for each target
+	for ml in `$prefix/bin/$target-gcc -print-multi-lib`; do
+		ml_path=`echo $ml | sed -e "s/;.*$//"`
+		ml_opt=`echo $ml | sed -e "s/^.*;//" | sed -e "s/@/ -/g"`
+		CMD1="$prefix/bin/$target-gcc $ml_opt -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/crt0.o"
+		CMD2="$prefix/bin/$target-gcc $ml_opt -DGCRT0 -c $srcdir/$MINTLIB_SRC/startup/crt0.S -o $prefix/$target/lib/$ml_path/gcrt0.o"
+		echo "$CMD1"; $CMD1 || { echo "Error installing crt0.o for $ml_opt"; exit 1; }
+		echo "$CMD2"; $CMD2 || { echo "Error installing gcrt0.o for $ml_opt"; exit 1; }
+	done
 
-if [ ! -f _mintlib-installed ]; then
-	$MAKE CFLAGS="-O2" CROSS=yes prefix=$prefix/$target install || { echo "Error building mintlib"; exit 1; }
-	touch _mintlib-installed
-fi
-
-if [ ! -f _crt0-mcpu-5475-installed ]; then
-# we can't link m68k object files with coldfire object files
-# we need an extra crt0.c for coldfire
-	echo "install crt0.o for mcpu=5475"
-	$target-gcc -c startup/crt0.S -mcpu=5475 -o $prefix/$target/lib/m5475/crt0.o && $target-gcc -mcpu=5475 -DGCRT0 -c startup/crt0.S -o $prefix/$target/lib/m5475/gcrt0.o || { echo "Error installing crt0.o for mcpu=5475"; exit 1; }
-	touch _crt0-mcpu-5475-installed
-fi
-
+	touch $builddir/_mintlib-installed
 fi
 
 #---------------------------------------------------------------------------------
@@ -533,7 +511,6 @@ if [ ! -f $builddir/_libcmini-installed ]; then
 #	done
 	touch $builddir/_libcmini-installed
 fi
-exit;
 
 #---------------------------------------------------------------------------------
 # build and install portable math lib
@@ -569,14 +546,20 @@ fi
 # build and install fdlibm
 #---------------------------------------------------------------------------------
 cd $srcdir/$FDLIBM_SRC || { echo "Can't change dir to $srcdir/$FDLIBM_SRC"; exit 1; }
-if [ ! -f _fdlibm-build ]; then
+if [ ! -f $builddir/_fdlibm-configured ]; then
+	rm -f $builddir/_fdlibm-build
 	CC=m68k-atari-mint-gcc AR=m68k-atari-mint-ar RANLIB=m68k-atari-mint-ranlib ./configure --prefix=$prefix/$target || { echo "Can't configure fdlibm"; exit 1; }
-	$MAKE CROSS=yes || { echo "Can't build fdlibm"; exit 1; }
-	touch _fdlibm-build
+	touch $builddir/_fdlibm-configured
 fi
-if [ ! -f _fdlibm-installed ]; then
+if [ ! -f $builddir/_fdlibm-build ]; then
+	rm -f $builddir/_fdlibm-installed
+	$MAKE CROSS=yes || { echo "Can't build fdlibm"; exit 1; }
+	touch $builddir/_fdlibm-build
+fi
+
+if [ ! -f $builddir/_fdlibm-installed ]; then
 	$MAKE install || { echo "Can't install fdlibm"; exit 1; }
-	touch _fdlibm-installed
+	touch $builddir/_fdlibm-installed
 fi
 
 #---------------------------------------------------------------------------------
@@ -587,13 +570,13 @@ cd $srcdir/$GEMLIB_SRC
 
 GEMLIBINSTALL_DIR=$prefix/$target
 
-if [ ! -f _gemlib-installed ]; then
-	# hotfix
-	sed_i "s:mt_event_mouse:mt_evnt_mouse:g" gemlib/gem.h
+if [ ! -f $builddir/_gemlib-installed ]; then
 
-	$MAKE OPTS="-O2 -fomit-frame-pointer" WARN="-Wall -Wextra -Wno-strict-aliasing" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
-	touch _gemlib-installed
+	#$MAKE OPTS="-O2 -fomit-frame-pointer" WARN="-Wall -Wextra -Wno-strict-aliasing" CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
+	$MAKE WARN="-Wall -Wextra -Werror" TERM=xterm CROSS=yes PREFIX=$prefix/$target install || { echo "Error building gemlib"; exit 1; }
+	touch $builddir/_gemlib-installed
 fi
+
 
 #---------------------------------------------------------------------------------
 # build and install the final compiler
@@ -601,16 +584,18 @@ fi
 
 cd $builddir/gcc
 
-if [ ! -f _gcc-stage2-build ]; then
-	rm -f _gcc-stage2-installed # force install
+if [ ! -f $builddir/_gcc-stage2-build ]; then
+	rm -f $builddir/_gcc-stage2-installed # force install
 	$MAKE all || { echo "Error building gcc stage2"; exit 1; }
-	touch _gcc-stage2-build
+	touch $builddir/_gcc-stage2-build
+fi
+exit;
+
+if [ ! -f $builddir/_gcc-stage2-installed ]; then
+	$MAKE install || { echo "Error installing gcc stage2"; exit 1; }
+	touch $builddir/_gcc-stage2-installed
 fi
 
-if [ ! -f _gcc-stage2-installed ]; then
-	$MAKE install || { echo "Error installing gcc stage2"; exit 1; }
-	touch _gcc-stage2-installed
-fi
 
 #---------------------------------------------------------------------------------
 # build and install tools

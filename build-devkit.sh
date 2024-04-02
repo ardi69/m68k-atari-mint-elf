@@ -112,10 +112,11 @@ MINTLIB_URL="https://github.com/freemint/mintlib/archive/$MINTLIB_VER.tar.gz"
 MINTLIB_SRCX="mintlib-$MINTLIB_VER"
 MINTLIB_SRC="mintlib"
 
-FDLIBM_VER="a159b62fc20f3ff5f1a268a4870aaf117d9c17d1"
+FDLIBM_VER="5614bbbafb7f8ad586608180c265eeedf9fbad95"
 FDLIBM_ARC="fdlibm-$FDLIBM_VER.tar.gz"
 FDLIBM_URL="https://github.com/freemint/fdlibm/archive/$FDLIBM_VER.tar.gz"
-FDLIBM_SRC="fdlibm-$FDLIBM_VER"
+FDLIBM_SRCX="fdlibm-$FDLIBM_VER"
+FDLIBM_SRC="fdlibm"
 
 LIBCMINI_VER="0.47"
 LIBCMINI_ARC="libcmini-$LIBCMINI_VER.tar.gz"

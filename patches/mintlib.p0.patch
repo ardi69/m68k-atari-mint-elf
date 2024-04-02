@@ -1,3 +1,70 @@
+Index: buildrules
+===================================================================
+--- buildrules	(Revision 702)
++++ buildrules	(Arbeitskopie)
+@@ -195,7 +195,7 @@
+ $(top_srcdir)/includepath: $(top_srcdir)/configvars
+ 	@echo "Generating $@"; \
+ 	local= ; \
+-	installdir=`$(CC) --print-search-dirs | awk '{ print $$2; exit; }'`; \
++	installdir=`$(CC) --print-search-dirs | awk '{ print $$2; exit; }' | sed -E -e 's|^(.):|/\1|' -e 's:\\\\:/:g'`; \
+ 	case $$installdir in /usr/local*) local=/local;; esac; \
+ 	echo "$${installdir}include -I$${installdir}include-fixed" >$@
+ 	@if [ -z "$$(<$@)" ]; then \
+Index: configvars
+===================================================================
+--- configvars	(Revision 702)
++++ configvars	(Arbeitskopie)
+@@ -38,6 +38,10 @@
+ # for ColdFire V4e processors.
+ WITH_V4E_LIB=yes
+ 
++# Uncomment this out if you want extra libraries
++# for fastcall api.
++WITH_FASTCALL=yes
++
+ # Uncomment this out if you want a debuggable lib lib_g.a.
+ #WITH_DEBUG_LIB=yes
+ 
+Index: crypt/md5-crypt.c
+===================================================================
+--- crypt/md5-crypt.c	(Revision 702)
++++ crypt/md5-crypt.c	(Arbeitskopie)
+@@ -75,7 +75,7 @@
+     /* Skip salt prefix.  */
+     salt += sizeof (md5_salt_prefix) - 1;
+ 
+-  salt_len = MIN (strcspn (salt, "$"), 8);
++  salt_len = MIN (strcspn (salt, "$"), (size_t)8);
+   key_len = strlen (key);
+ 
+   /* Prepare for the real work.  */
+Index: dirent/closedir.c
+===================================================================
+--- dirent/closedir.c	(Revision 702)
++++ dirent/closedir.c	(Arbeitskopie)
+@@ -34,7 +34,7 @@
+ 		return -1;
+ 	}
+ 	
+-	if (dirp->handle != 0xff000000L)
++	if (dirp->handle != (long)0xff000000L)
+ 		r = Dclosedir(dirp->handle);
+ 	else
+ 		r = 0;
+Index: dirent/readdir.c
+===================================================================
+--- dirent/readdir.c	(Revision 702)
++++ dirent/readdir.c	(Arbeitskopie)
+@@ -44,7 +44,7 @@
+ 		return NULL;
+ 	}
+ 	
+-	if (d->handle != 0xff000000L)  {
++	if (d->handle != (long)0xff000000L)  {
+ 		/* The directory descriptor was optained by calling Dopendir(), as
+ 		 * there is a valid handle.
+ 		 */
 Index: include/bits/sched.h
 ===================================================================
 --- include/bits/sched.h	(Revision 702)
@@ -20,6 +87,41 @@ Index: include/bits/sched.h
 +#define __sched_param sched_param
 +
 +#endif /* _BITS_SHED_H */
+Index: include/errno.h
+===================================================================
+--- include/errno.h	(Revision 702)
++++ include/errno.h	(Arbeitskopie)
+@@ -39,8 +39,12 @@
+    MiNTLib may require this.  */
+ #define __set_errno(e) (errno = e)
+ 
+-extern int errno;
++int *__get_p_errno(void);
+ 
++#define errno (*__get_p_errno())
++
++//extern int errno;
++
+ # if defined(__USE_GNU)
+ 
+ /* The full and simple forms of the name with which the program was
+Index: include/getopt_int.h
+===================================================================
+--- include/getopt_int.h	(Revision 702)
++++ include/getopt_int.h	(Arbeitskopie)
+@@ -109,7 +109,11 @@
+ 
+ /* The initializer is necessary to set OPTIND and OPTERR to their
+    default values and to clear the initialization flag.  */
+-#define _GETOPT_DATA_INITIALIZER	{ 1, 1 }
++#if defined _LIBC && defined USE_NONOPTION_FLAGS
++#  define _GETOPT_DATA_INITIALIZER	{ 1, 1, 0, 0, 0, 0, REQUIRE_ORDER, 0, 0, 0, 0, 0 }
++#else
++#  define _GETOPT_DATA_INITIALIZER	{ 1, 1, 0, 0, 0, 0, REQUIRE_ORDER, 0, 0, 0 }
++#endif
+ 
+ extern int _getopt_internal_r (int ___argc, char *const *___argv,
+ 			       const char *__shortopts,
 Index: include/stdlib.h
 ===================================================================
 --- include/stdlib.h	(Revision 702)
@@ -42,6 +144,175 @@ Index: include/stdlib.h
  
  /* Convert a string to a long integer.  */
  extern long int strtol (__const char *__restrict __nptr,
+Index: lib020/Makefile
+===================================================================
+--- lib020/Makefile	(Revision 702)
++++ lib020/Makefile	(Arbeitskopie)
+@@ -15,7 +15,7 @@
+ subdir = lib020
+ 
+ libsize = 020
+-instdir = m68020-60
++instdir = $(shell $(CC) -m68020-60 -print-multi-directory)
+ cflags = -m68020-60
+ 
+ default: all
+Index: lib/Makefile
+===================================================================
+--- lib/Makefile	(Revision 702)
++++ lib/Makefile	(Arbeitskopie)
+@@ -15,7 +15,7 @@
+ subdir = lib
+ 
+ libsize = 
+-instdir = 
++instdir = $(shell $(CC) -print-multi-directory)
+ cflags = 
+ 
+ default: all
+Index: lib_g/Makefile
+===================================================================
+--- lib_g/Makefile	(Revision 702)
++++ lib_g/Makefile	(Arbeitskopie)
+@@ -15,7 +15,7 @@
+ subdir = lib_g
+ 
+ qualifier = _g
+-instdir =
++instdir = $(shell $(CC) -print-multi-directory)
+ cflags = -O -g
+ nocflags = -O2 -O3 -fomit-frame-pointer -fexpensive-optimizations
+ 
+Index: lib_p/Makefile
+===================================================================
+--- lib_p/Makefile	(Revision 702)
++++ lib_p/Makefile	(Arbeitskopie)
+@@ -15,7 +15,7 @@
+ subdir = lib_p
+ 
+ qualifier = _p
+-instdir =
++instdir = $(shell $(CC) -print-multi-directory)
+ cflags = -g -pg
+ nocflags = -fomit-frame-pointer
+ 
+Index: libv4e/Makefile
+===================================================================
+--- libv4e/Makefile	(Revision 702)
++++ libv4e/Makefile	(Arbeitskopie)
+@@ -15,7 +15,7 @@
+ subdir = libv4e
+ 
+ libsize = v4e
+-instdir = m5475
++instdir = $(shell $(CC) -mcpu=5475 -print-multi-directory)
+ cflags = -mcpu=5475
+ 
+ default: all
+Index: Makefile
+===================================================================
+--- Makefile	(Revision 702)
++++ Makefile	(Arbeitskopie)
+@@ -31,6 +31,9 @@
+ TEST_SUBDIRS = argp crypt dirent login mintlib misc posix pwdgrp shadow signal \
+   socket startup stdiio stdio stdlib string time tz unix
+ 
++# -mshort filtered by default
++MULTILIB_FILTER := "@mshort"
++
+ ifeq ($(WITH_PROFILE_LIB), yes)
+   SUBDIRS += lib_p
+   DIST_SUBDIRS += lib_p
+@@ -44,18 +47,41 @@
+ ifeq ($(WITH_020_LIB), yes)
+   SUBDIRS += lib020
+   DIST_SUBDIRS += lib020
++else
++  MULTILIB_FILTER = "$(MULTILIB_FILTER)|@m68020"
+ endif
+ 
+ ifeq ($(WITH_V4E_LIB), yes)
+   SUBDIRS += libv4e
+   DIST_SUBDIRS += libv4e
++else
++  MULTILIB_FILTER = "$(MULTILIB_FILTER)|@mcpu=5475"
+ endif
+ 
++ifneq ($(WITH_FASTCALL), yes)
++  MULTILIB_FILTER = "$(MULTILIB_FILTER)|@mfastcall"
++endif
++
+ include $(srcdir)/BINFILES
+ include $(srcdir)/SRCFILES
+ include $(srcdir)/MISCFILES
+ include $(srcdir)/EXTRAFILES
+ 
++EXTRA_MULTILIBS := $(strip $(shell $(CC) -print-multi-lib | sed -E -e "s:\S*($(MULTILIB_FILTER))\S*::g"))
++err := $(warning $(EXTRA_MULTILIBS))
++# filter out standards
++EXTRA_MULTILIBS := $(filter-out $(shell $(CC) -print-multi-directory);%,$(EXTRA_MULTILIBS))
++EXTRA_MULTILIBS := $(filter-out $(shell $(CC) -m68020 -print-multi-directory);%,$(EXTRA_MULTILIBS))
++EXTRA_MULTILIBS := $(filter-out $(shell $(CC) -mcpu=5475 -print-multi-directory);%,$(EXTRA_MULTILIBS))
++# only flags separated by dots e.G. .m68020-60.fastcall
++EXTRA_MULTILIBS := $(foreach LIB,$(EXTRA_MULTILIBS), $(shell echo "$(LIB)" | sed -E -e "s:^.*;::" -e "s:@:.:g" -e "s:=:@:g"))
++
++SUBDIRS += $(foreach LIB,$(EXTRA_MULTILIBS),lib$(LIB))
++DIST_SUBDIRS += $(foreach LIB,$(EXTRA_MULTILIBS),lib$(LIB))
++
++err := $(warning $(EXTRA_MULTILIBS))
++#err := $(error ende)
++
+ default: all
+ 
+ include phony
+@@ -62,7 +88,7 @@
+ 
+ all: all-here all-recursive
+ 
+-all-here:
++all-here: $(foreach LIB,$(EXTRA_MULTILIBS),lib$(LIB)/Makefile)
+ 
+ install: all-here install-recursive zoneswarning
+ 
+@@ -75,7 +101,7 @@
+ install-man: all install-man-recursive
+ 
+ clean: clean-recursive
+-	rm -rf .deps includepath CFILES
++	rm -rf .deps includepath CFILES $(foreach LIB,$(EXTRA_MULTILIBS),lib$(LIB))
+ 
+ bakclean: bakclean-recursive
+ 
+@@ -234,3 +260,14 @@
+ 	rm -f $@
+ 	sed 's,@VERSION@,$(VERSION),g' $@.in >$@
+ 
++
++define EXTRA_MULTILIB_TEMPLATE
++lib$(1)/Makefile : multilib.mk.in Makefile
++	@if [ ! -d lib$(1) ]; then mkdir -vp lib$(1); fi
++	@sed -e "s:@SUBDIR@:lib$(1):" -e "s:@CFLAGS@:$$(subst @,=,$$(subst ., -,$(1))):g" multilib.mk.in >$$@
++	@echo "BINFILES = libc.a libiio.a" > lib$(1)/BINFILES
++	@echo "SRCFILES += BINFILES EXTRAFILES Makefile MISCFILES SRCFILES" > lib$(1)/EXTRAFILES
++	@echo "SRCFILES =" > lib$(1)/SRCFILES
++	@echo "MISCFILES =" > lib$(1)/MISCFILES
++endef
++$(foreach LIB,$(EXTRA_MULTILIBS),$(eval $(call EXTRA_MULTILIB_TEMPLATE,$(LIB))))
+Index: mintlib/errno.c
+===================================================================
+--- mintlib/errno.c	(nicht existent)
++++ mintlib/errno.c	(Arbeitskopie)
+@@ -0,0 +1,10 @@
++
++
++#include <compiler.h>
++
++int *__get_p_errno_single_thread_impl(void) {
++	static int errno = 0;
++	return &errno;
++}
++
++weak_alias (__get_p_errno_single_thread_impl, __get_p_errno)
 Index: mintlib/EXTRAFILES
 ===================================================================
 --- mintlib/EXTRAFILES	(Revision 702)
@@ -54,6 +325,44 @@ Index: mintlib/EXTRAFILES
  syscalls.h syscalls.list test-assert-perr.c test-assert.c test-atexit.c \
  test-atexit.expect test-ctype.c test-ctype1.c test-ctype1.expect \
  test-dirent.args test-dirent.c test-mallocbug.c test-seekdir.c test-setjmp.c \
+Index: mintlib/gensys
+===================================================================
+--- mintlib/gensys	(Revision 702)
++++ mintlib/gensys	(Arbeitskopie)
+@@ -168,7 +168,10 @@
+           has_va_args = "no"
+           
+           print "static"
+-          print "long _sys_" f " (int opcode, va_list args)"
++          if (length(f) == 1)
++            print "long _sys_" f " (int opcode, va_list __attribute__((unused)) args)"
++          else
++            print "long _sys_" f " (int opcode, va_list args)"
+           print "{"
+           for (j = 2; j <= length (f); j++)
+             {
+Index: mintlib/globals.c
+===================================================================
+--- mintlib/globals.c	(Revision 702)
++++ mintlib/globals.c	(Arbeitskopie)
+@@ -18,7 +18,7 @@
+ #include <assert.h>
+ #include "lib.h"
+ 
+-int errno;
++//int errno; moved to errno.c
+ int __mint;		/* 0 for TOS, MiNT version number in BCD format 
+ 			   otherwise.  */
+ int _pdomain;		/* Error code of Pdomain call */
+@@ -104,7 +104,7 @@
+ 		(fpos_t) -1, \
+ 		(fpos_t) -1, \
+ 		CHAIN, \
+-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL }; \
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0 }; \
+ 	FILE* NAME = &__##NAME;
+ 
+ STD_STREAM(stdin, 0, STDIN_MODE, NULL);
 Index: mintlib/malloc.c
 ===================================================================
 --- mintlib/malloc.c	(Revision 702)
@@ -150,11 +459,58 @@ Index: mintlib/malloc.c
 +	_SPIN_UNLOCK(__malloc_mutex);
  }
  weak_alias(__free, free)
+Index: mintlib/malloc_int.h
+===================================================================
+--- mintlib/malloc_int.h	(Revision 702)
++++ mintlib/malloc_int.h	(Arbeitskopie)
+@@ -6,13 +6,13 @@
+ {
+ 	long valid;
+ #define VAL_FREE  0xf4ee0abcL
+-#define VAL_ALLOC 0xa11c0abcL
+-#define VAL_BORDER 0xb04d0abcL
++#define VAL_ALLOC ((long)0xa11c0abcL)
++#define VAL_BORDER ((long)0xb04d0abcL)
+ 
+ 	struct mem_chunk *next;
+ 	unsigned long size;
+ };
+-#define ALLOC_SIZE(ch) (*(long *)((char *)(ch) + sizeof(*(ch))))
++#define ALLOC_SIZE(ch) (*(unsigned long *)((char *)(ch) + sizeof(*(ch))))
+ #define BORDER_EXTRA ((sizeof(struct mem_chunk) + sizeof(long) + (MALLOC_ALIGNMENT - 1)) & ~(MALLOC_ALIGNMENT - 1))
+ 
+ /* linked list of free blocks */
+Index: mintlib/profil-counter.h
+===================================================================
+--- mintlib/profil-counter.h	(Revision 702)
++++ mintlib/profil-counter.h	(Arbeitskopie)
+@@ -33,7 +33,7 @@
+ };
+ 
+ static void
+-profil_counter (int signr, int code, struct mint_sigcontext *scp)
++profil_counter (int __attribute__((unused)) signr, int __attribute__((unused)) code, struct mint_sigcontext *scp)
+ {
+   profil_count ((void *) scp->sc_pc);
+ }
+Index: mintlib/profil-posix.c
+===================================================================
+--- mintlib/profil-posix.c	(Revision 702)
++++ mintlib/profil-posix.c	(Arbeitskopie)
+@@ -96,7 +96,7 @@
+   pc_offset = offset;
+   pc_scale = scale;
+ 
+-  act.sa_handler = (sighandler_t) &profil_counter;
++  act.sa_handler = (sighandler_t)(void*) &profil_counter;
+   act.sa_flags = 0; //SA_RESTART;
+   sigfillset (&act.sa_mask);
+   if (__sigaction (SIGPROF, &act, &oact) < 0)
 Index: mintlib/realloc.c
 ===================================================================
 --- mintlib/realloc.c	(Revision 702)
 +++ mintlib/realloc.c	(Arbeitskopie)
-@@ -9,10 +9,16 @@
+@@ -9,15 +9,21 @@
  #include <string.h>
  #include <assert.h>
  #include <unistd.h>
@@ -171,6 +527,12 @@ Index: mintlib/realloc.c
  void *
  __realloc (void *r, size_t n)
  {
+ 	struct mem_chunk *p;
+-	long sz;
++	unsigned long sz;
+ 
+ 	/* obscure features:
+ 	 * 
 @@ -58,6 +64,8 @@
  		/* block too small, get new one */
  		struct mem_chunk *q, *s, *t;
@@ -197,6 +559,19 @@ Index: mintlib/realloc.c
  			newr = __malloc(n);
  			if (newr)
  			{
+Index: mintlib/rewinddi.c
+===================================================================
+--- mintlib/rewinddi.c	(Revision 702)
++++ mintlib/rewinddi.c	(Arbeitskopie)
+@@ -26,7 +26,7 @@
+ 	long r;
+ 	_DTA *olddta;
+ 
+-	if (dirp->handle != 0xff000000L)  {
++	if (dirp->handle != (long)0xff000000L)  {
+ 		(void)Drewinddir(dirp->handle);
+ 		dirp->buf.d_off = 0;
+ 		return;
 Index: mintlib/spin_lock.h
 ===================================================================
 --- mintlib/spin_lock.h	(nicht existent)
@@ -215,3 +590,1404 @@ Index: mintlib/spin_lock.h
 +
 +
 +#endif /* _SPIN_LOCK_H */
+Index: mintlib/SRCFILES
+===================================================================
+--- mintlib/SRCFILES	(Revision 702)
++++ mintlib/SRCFILES	(Arbeitskopie)
+@@ -30,6 +30,7 @@
+ 	do_chown16.c \
+ 	dostime.c \
+ 	enoent.c \
++	errno.c \
+ 	frexp.S \
+ 	ftw.c \
+ 	getcookie.S \
+Index: misc/mntent_r.c
+===================================================================
+--- misc/mntent_r.c	(Revision 702)
++++ misc/mntent_r.c	(Arbeitskopie)
+@@ -155,8 +155,10 @@
+     {
+     case 0:
+       mp->mnt_freq = 0;
++      /* fall through */
+     case 1:
+       mp->mnt_passno = 0;
++      /* fall through */
+     case 2:
+       break;
+     }
+Index: misc/obstack.c
+===================================================================
+--- misc/obstack.c	(Revision 702)
++++ misc/obstack.c	(Arbeitskopie)
+@@ -114,7 +114,7 @@
+ #define CALL_CHUNKFUN(h, size) \
+   (((h) -> use_extra_arg) \
+    ? (*(h)->chunkfun) ((h)->extra_arg, (size)) \
+-   : (*(struct _obstack_chunk *(*) (long)) (h)->chunkfun) ((size)))
++   : (*(struct _obstack_chunk *(*) (long)) (void*) (h)->chunkfun) ((size)))
+ 
+ #define CALL_FREEFUN(h, old_chunk) \
+   do { \
+@@ -121,7 +121,7 @@
+     if ((h) -> use_extra_arg) \
+       (*(h)->freefun) ((h)->extra_arg, (old_chunk)); \
+     else \
+-      (*(void (*) (void *)) (h)->freefun) ((old_chunk)); \
++      (*(void (*) (void *)) (void*) (h)->freefun) ((old_chunk)); \
+   } while (0)
+ #else
+ #define CALL_CHUNKFUN(h, size) \
+@@ -183,8 +183,8 @@
+     }
+ 
+ #if defined (__STDC__) && __STDC__
+-  h->chunkfun = (struct _obstack_chunk * (*)(void *, long)) chunkfun;
+-  h->freefun = (void (*) (void *, struct _obstack_chunk *)) freefun;
++  h->chunkfun = (struct _obstack_chunk * (*)(void *, long))(void*) chunkfun;
++  h->freefun = (void (*) (void *, struct _obstack_chunk *)) (void*)freefun;
+ #else
+   h->chunkfun = (struct _obstack_chunk * (*)()) chunkfun;
+   h->freefun = freefun;
+Index: multibyte/btowc.c
+===================================================================
+--- multibyte/btowc.c	(Revision 702)
++++ multibyte/btowc.c	(Arbeitskopie)
+@@ -3,5 +3,5 @@
+ 
+ wint_t btowc(int c)
+ {
+-	return c<128U ? c : EOF;
++	return c<128 ? c : EOF;
+ }
+Index: multibyte/internal.c
+===================================================================
+--- multibyte/internal.c	(Revision 702)
++++ multibyte/internal.c	(Arbeitskopie)
+@@ -8,7 +8,7 @@
+ 
+ #include "internal.h"
+ 
+-#define C(x) ( x<2 ? -1 : ( R(0x80,0xc0) | x ) )
++#define C(x) ( x<2 ? (uint32_t)-1 : ( R(0x80,0xc0) | x ) )
+ #define D(x) C((x+16))
+ #define E(x) ( ( x==0 ? R(0xa0,0xc0) : \
+                  x==0xd ? R(0x80,0xa0) : \
+Index: multibyte/internal.h
+===================================================================
+--- multibyte/internal.h	(Revision 702)
++++ multibyte/internal.h	(Arbeitskopie)
+@@ -16,7 +16,7 @@
+ #define OOB(c,b) (((((b)>>3)-0x10)|(((b)>>3)+((int32_t)(c)>>26))) & ~7)
+ 
+ /* Interval [a,b). Either a must be 80 or b must be c0, lower 3 bits clear. */
+-#define R(a,b) ((uint32_t)((a==0x80 ? 0x40-b : -a) << 23))
++#define R(a,b) (((uint32_t)((a==0x80 ? 0x40-b : -a)) << 23))
+ #define FAILSTATE R(0x80,0x80)
+ 
+ #define SA 0xc2u
+Index: multibyte/wcrtomb.c
+===================================================================
+--- multibyte/wcrtomb.c	(Revision 702)
++++ multibyte/wcrtomb.c	(Arbeitskopie)
+@@ -11,7 +11,7 @@
+ 
+ #include "internal.h"
+ 
+-size_t wcrtomb(char *__restrict s, wchar_t wc, mbstate_t *__restrict st)
++size_t wcrtomb(char *__restrict s, wchar_t wc, mbstate_t __attribute__((unused)) *__restrict st)
+ {
+ 	if (!s) return 1;
+ 	if ((unsigned)wc < 0x80) {
+Index: multibyte/wcsnrtombs.c
+===================================================================
+--- multibyte/wcsnrtombs.c	(Revision 702)
++++ multibyte/wcsnrtombs.c	(Arbeitskopie)
+@@ -11,7 +11,7 @@
+ 
+ #include "internal.h"
+ 
+-size_t wcsnrtombs(char *__restrict dst, const wchar_t **__restrict wcs, size_t wn, size_t n, mbstate_t *__restrict st)
++size_t wcsnrtombs(char *__restrict dst, const wchar_t **__restrict wcs, size_t wn, size_t n, mbstate_t __attribute__((unused)) *__restrict st)
+ {
+ 	size_t l, cnt=0, n2;
+ 	char *s, buf[256];
+Index: multibyte/wcsrtombs.c
+===================================================================
+--- multibyte/wcsrtombs.c	(Revision 702)
++++ multibyte/wcsrtombs.c	(Arbeitskopie)
+@@ -11,7 +11,7 @@
+ 
+ #include "internal.h"
+ 
+-size_t wcsrtombs(char *__restrict s, const wchar_t **__restrict ws, size_t n, mbstate_t *__restrict st)
++size_t wcsrtombs(char *__restrict s, const wchar_t **__restrict ws, size_t n, mbstate_t __attribute__((unused)) *__restrict st)
+ {
+ 	const wchar_t *ws2;
+ 	char buf[4];
+Index: multilib.mk.in
+===================================================================
+--- multilib.mk.in	(nicht existent)
++++ multilib.mk.in	(Arbeitskopie)
+@@ -0,0 +1,23 @@
++# lib/Makefile -- MiNTLib.
++# Copyright (C) 1999, 2000 Guido Flohr <guido@freemint.de>
++#
++# This file is part of the MiNTLib project, and may only be used
++# modified and distributed under the terms of the MiNTLib project
++# license, COPYMINT.  By continuing to use, modify, or distribute
++# this file you indicate that you have read the license and
++# understand and accept it fully.
++
++SHELL = /bin/sh
++
++srcdir = .
++top_srcdir = ..
++csrcdir = $(top_srcdir)/src
++subdir = @SUBDIR@
++
++libsize = 
++instdir = $(shell $(CC) @CFLAGS@ -print-multi-directory)
++cflags = @CFLAGS@
++
++default: all
++
++include $(top_srcdir)/buildrules
+Index: posix/execvp.c
+===================================================================
+--- posix/execvp.c	(Revision 702)
++++ posix/execvp.c	(Arbeitskopie)
+@@ -122,7 +122,7 @@
+ 				if (__mint == 0 && **ext == '\0')
+ 					break;
+ 				/* Else fall thru'.  */
+-				  
++                /* fall through */
+ 			default:
+ 				/* Some other error means we found an
+ 				   executable but something went wrong
+Index: posix/glob.c
+===================================================================
+--- posix/glob.c	(Revision 702)
++++ posix/glob.c	(Arbeitskopie)
+@@ -344,7 +344,7 @@
+   const char *dirname;
+   size_t dirlen;
+   int status;
+-  int oldcount;
++  size_t oldcount;
+ 
+   if (pattern == NULL || pglob == NULL || (flags & ~__GLOB_FLAGS) != 0)
+     {
+@@ -359,7 +359,7 @@
+ 	{
+ 	  /* Allocate working buffer large enough for our work.  Note that
+ 	    we have at least an opening and closing brace.  */
+-	  int firstc;
++	  size_t firstc;
+ 	  char *alt_start;
+ 	  const char *p;
+ 	  const char *next;
+@@ -628,7 +628,7 @@
+ 		  struct passwd pwbuf;
+ 		  int save = errno;
+ 
+-		  if (pwbuflen == -1)
++		  if (pwbuflen == (size_t)-1)
+ 		    /* `sysconf' does not support _SC_GETPW_R_SIZE_MAX.
+ 		       Try a moderate value.  */
+ 		    pwbuflen = 1024;
+@@ -717,7 +717,7 @@
+ 	    struct passwd pwbuf;
+ 	    int save = errno;
+ 
+-	    if (buflen == -1)
++	    if (buflen == (size_t)-1)
+ 	      /* `sysconf' does not support _SC_GETPW_R_SIZE_MAX.  Try a
+ 		 moderate value.  */
+ 	      buflen = 1024;
+@@ -828,7 +828,7 @@
+ 	 have to glob for the directory, and then glob for
+ 	 the pattern in each directory found.  */
+       glob_t dirs;
+-      register int i;
++      register size_t i;
+ 
+       status = glob (dirname,
+ 		     ((flags & (GLOB_ERR | GLOB_NOCHECK | GLOB_NOESCAPE))
+@@ -978,7 +978,7 @@
+       if (dirlen > 0)
+ 	{
+ 	  /* Stick the directory on the front of each name.  */
+-	  int ignore = oldcount;
++	  size_t ignore = oldcount;
+ 
+ 	  if ((flags & GLOB_DOOFFS) && ignore < pglob->gl_offs)
+ 	    ignore = pglob->gl_offs;
+@@ -996,7 +996,7 @@
+   if (flags & GLOB_MARK)
+     {
+       /* Append slashes to directory names.  */
+-      int i;
++      size_t i;
+       struct stat st;
+       for (i = oldcount; i < pglob->gl_pathc; ++i)
+ 	if (((flags & GLOB_ALTDIRFUNC)
+@@ -1040,7 +1040,7 @@
+ {
+   if (pglob->gl_pathv != NULL)
+     {
+-      register int i;
++      register size_t i;
+       for (i = 0; i < pglob->gl_pathc; ++i)
+ 	if (pglob->gl_pathv[i] != NULL)
+ 	  free ((__ptr_t) pglob->gl_pathv[i]);
+Index: posix/posix_fallocate.c
+===================================================================
+--- posix/posix_fallocate.c	(Revision 702)
++++ posix/posix_fallocate.c	(Arbeitskopie)
+@@ -36,7 +36,7 @@
+      OFFSET + LEN is too large if it is a negative value.  */
+   if (offset < 0 || len == 0)
+     return EINVAL;
+-  if (offset + len < 0)
++  if ((__off_t)(offset + len) < 0)
+     return EFBIG;
+ 
+   /* First thing we have to make sure is that this is really a regular
+Index: posix/regex.c
+===================================================================
+--- posix/regex.c	(Revision 702)
++++ posix/regex.c	(Arbeitskopie)
+@@ -1578,7 +1578,7 @@
+    when we use a character as a subscript we must make it unsigned.  */
+ #ifndef TRANSLATE
+ # define TRANSLATE(d) \
+-  (translate ? (char) translate[(unsigned char) (d)] : (d))
++  (translate ? (char) translate[(unsigned char) (d)] : (char)(d))
+ #endif
+ 
+ 
+@@ -2011,7 +2011,9 @@
+           if ((syntax & RE_BK_PLUS_QM)
+               || (syntax & RE_LIMITED_OPS))
+             goto normal_char;
++          /* fall through */
+         handle_plus:
++          /* fall through */
+         case '*':
+           /* If there is no previous pattern... */
+           if (!laststart)
+@@ -4464,6 +4466,7 @@
+                 {
+                   case jump_n:
+ 		    is_a_jump_n = true;
++            /* fall through */
+                   case pop_failure_jump:
+ 		  case maybe_pop_jump:
+ 		  case jump:
+@@ -4872,8 +4875,8 @@
+ 	      goto unconditional_jump;
+ 	    }
+         /* Note fall through.  */
++        /* fall through */
+ 
+-
+ 	/* The end of a simple repeat has a pop_failure_jump back to
+            its matching on_failure_jump, where the latter will push a
+            failure point.  The pop_failure_jump takes off failure
+@@ -4899,7 +4902,7 @@
+             (void) pdummy;
+           }
+ 	  /* Note fall through.  */
+-
++	  /* fall through */
+ 	unconditional_jump:
+ #ifdef _LIBC
+ 	  DEBUG_PRINT2 ("\n%p: ", p);
+@@ -4907,7 +4910,7 @@
+ 	  DEBUG_PRINT2 ("\n0x%x: ", p);
+ #endif
+           /* Note fall through.  */
+-
++          /* fall through */
+         /* Unconditionally jump (without popping any failure points).  */
+         case jump:
+ 	  EXTRACT_NUMBER_AND_INCR (mcnt, p);	/* Get the amount to jump.  */
+@@ -5188,6 +5191,7 @@
+                 {
+                 case jump_n:
+                   is_a_jump_n = true;
++                  /* fall through */
+                 case maybe_pop_jump:
+                 case pop_failure_jump:
+                 case jump:
+@@ -5453,7 +5457,7 @@
+ 
+     case set_number_at:
+       p1 += 4;
+-
++      /* fall through */
+     default:
+       /* All other opcodes mean we cannot match the empty string.  */
+       return false;
+@@ -5795,7 +5799,7 @@
+ size_t
+ regerror (errcode, preg, errbuf, errbuf_size)
+     int errcode;
+-    const regex_t *preg;
++    const regex_t *preg __attribute__((unused));
+     char *errbuf;
+     size_t errbuf_size;
+ {
+Index: posix/wordexp.c
+===================================================================
+--- posix/wordexp.c	(Revision 702)
++++ posix/wordexp.c	(Arbeitskopie)
+@@ -157,7 +157,7 @@
+     {
+       char *old_buffer = buffer;
+       assert (buffer == NULL || *maxlen != 0);
+-      *maxlen += MAX (2 * len, W_CHUNK);
++      *maxlen += MAX (2 * len, (size_t)W_CHUNK);
+       buffer = realloc (old_buffer, 1 + *maxlen);
+ 
+       if (buffer == NULL)
+@@ -397,10 +397,10 @@
+ internal_function
+ do_parse_glob (const char *glob_word, char **word, size_t *word_length,
+ 	       size_t *max_length, wordexp_t *pwordexp, const char *ifs,
+-	       const char *ifs_white)
++	       const char __attribute__((unused)) *ifs_white)
+ {
+   int error;
+-  int match;
++  size_t match;
+   glob_t globbuf;
+ 
+   error = glob (glob_word, GLOB_NOCHECK, NULL, &globbuf);
+@@ -831,6 +831,7 @@
+ 
+ 	case '(':
+ 	  ++paren_depth;
++	  /* fall through */
+ 	default:
+ 	  expr = w_addchar (expr, &expr_length, &expr_maxlen, words[*offset]);
+ 	  if (expr == NULL)
+@@ -2041,6 +2042,7 @@
+ 
+ 	case '\'':
+ 	  squoting = 1 - squoting;
++	  /* fall through */
+ 	default:
+ 	  comm = w_addchar (comm, &comm_length, &comm_maxlen, words[*offset]);
+ 	  if (comm == NULL)
+Index: pwdgrp/grp.c
+===================================================================
+--- pwdgrp/grp.c	(Revision 702)
++++ pwdgrp/grp.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+   setgrent();
+ 
+   while (nextent(fp) != 0)
+-    if (curentry.gr_gid == gid)
++    if (curentry.gr_gid == (__gid_t)gid)
+       return(&curentry);
+ 
+   return(NULL);
+Index: shadow/lckpwdf.c
+===================================================================
+--- shadow/lckpwdf.c	(Revision 702)
++++ shadow/lckpwdf.c	(Arbeitskopie)
+@@ -44,7 +44,7 @@
+ 
+ 
+ /* Prototypes for local functions.  */
+-static void noop_handler __P ((int __sig));
++static __CDECL void noop_handler __P ((int __sig));
+ 
+ 
+ /* We cannot simply return in error cases.  We have to close the file
+@@ -179,7 +179,7 @@
+ 
+ static void
+ noop_handler (sig)
+-     int sig;
++     int sig __attribute__((unused));
+ {
+   /* We simply return which makes the `fcntl' call return with an error.  */
+ }
+Index: signal/sigwait.c
+===================================================================
+--- signal/sigwait.c	(Revision 702)
++++ signal/sigwait.c	(Arbeitskopie)
+@@ -23,7 +23,7 @@
+ #include <stddef.h>		/* For NULL.  */
+ 
+ /* This is our dummy signal handler we use here.  */
+-static void ignore_signal (int sig);
++static __CDECL void ignore_signal (int sig);
+ 
+ /* Place where to remember which signal we got.  Please note that this
+    implementation cannot be used for the threaded libc.  The
+@@ -83,7 +83,7 @@
+ weak_alias (__sigwait, sigwait)
+ 
+ 
+-static void
++static __CDECL void
+ ignore_signal (int sig)
+ {
+   /* Remember the signal.  */
+Index: socket/herror.c
+===================================================================
+--- socket/herror.c	(Revision 702)
++++ socket/herror.c	(Arbeitskopie)
+@@ -18,7 +18,7 @@
+ {
+ 	fprintf (stderr, "%s: %s.\n",
+ 		(s && *s) ? s : "",
+-		((u_int)h_errno < h_nerr)
++		((u_int)h_errno < (u_int)h_nerr)
+ 			? h_errlist[h_errno]
+ 			: "Unknown error");
+ }
+Index: socket/inet_network.c
+===================================================================
+--- socket/inet_network.c	(Revision 702)
++++ socket/inet_network.c	(Arbeitskopie)
+@@ -52,10 +52,9 @@
+ in_addr_t
+ inet_network (const char *cp)
+ {
+-	register u_long val, base, n;
++	register u_long val, base, n, i;
+ 	register char c;
+ 	u_long parts[4], *pp = parts;
+-	register int i;
+ 
+ again:
+ 	val = 0; base = 10;
+Index: socket/rcmd.c
+===================================================================
+--- socket/rcmd.c	(Revision 702)
++++ socket/rcmd.c	(Arbeitskopie)
+@@ -145,7 +145,7 @@
+ 			goto bad;
+ 		listen(s2, 1);
+ 		(void) sprintf(num, "%d", lport);
+-		if (write(s, num, strlen(num)+1) != strlen(num)+1) {
++		if (write(s, num, strlen(num)+1) != (ssize_t)strlen(num)+1) {
+ 			perror("write: setting up stderr");
+ 			(void) close(s2);
+ 			goto bad;
+Index: socket/readv.c
+===================================================================
+--- socket/readv.c	(Revision 702)
++++ socket/readv.c	(Arbeitskopie)
+@@ -43,13 +43,11 @@
+ 		
+ 		{
+ 			char *p, *_p;
+-			long size, copy;
++			size_t size, copy;
+ 			int i;
+ 			
+ 			for (i = size = 0; i < niov; ++i) {
+-				if (iov[i].iov_len >= 0)
+-					size += iov[i].iov_len;
+-				else {
++				if ((ssize_t)iov[i].iov_len < 0 || (ssize_t)(size += iov[i].iov_len) < 0) {
+ 					__set_errno (EINVAL);
+ 					return -1;
+ 				}
+Index: socket/res_debug.c
+===================================================================
+--- socket/res_debug.c	(Revision 702)
++++ socket/res_debug.c	(Arbeitskopie)
+@@ -343,7 +343,7 @@
+ 		break;
+ 
+ 	case T_WKS:
+-		if (dlen < sizeof(u_long) + 1)
++		if (dlen < (int)sizeof(u_long) + 1)
+ 			break;
+ 		memcpy((char *)&inaddr, cp, sizeof(inaddr));
+ 		cp += sizeof(u_long);
+Index: socket/res_init.c
+===================================================================
+--- socket/res_init.c	(Revision 702)
++++ socket/res_init.c	(Arbeitskopie)
+@@ -64,6 +64,10 @@
+ 	4,                         	/* number of times to retransmit */
+ 	RES_DEFAULT,			/* options flags */
+ 	1,                         	/* number of name servers */
++	{{0,},},
++	0,
++	{0,},
++	{0,}
+ };
+ 
+ /*
+Index: socket/res_mkquery.c
+===================================================================
+--- socket/res_mkquery.c	(Revision 702)
++++ socket/res_mkquery.c	(Arbeitskopie)
+@@ -57,7 +57,7 @@
+ 	int class, type;	/* class and type of query */
+ 	char *data;		/* resource record data */
+ 	int datalen;		/* length of data */
+-	struct rrec *newrr;	/* new rr for modify or append */
++	struct rrec *newrr __attribute__((unused));	/* new rr for modify or append */
+ 	char *buf;		/* buffer to put query */
+ 	int buflen;		/* size of buffer */
+ {
+@@ -73,7 +73,7 @@
+ 	/*
+ 	 * Initialize header fields.
+ 	 */
+-	if ((buf == NULL) || (buflen < sizeof(HEADER)))
++	if ((buf == NULL) || (buflen < (int)sizeof(HEADER)))
+ 		return(-1);
+ 	memset(buf, 0, sizeof(HEADER));
+ 	hp = (HEADER *) buf;
+Index: socket/res_query.c
+===================================================================
+--- socket/res_query.c	(Revision 702)
++++ socket/res_query.c	(Arbeitskopie)
+@@ -245,7 +245,7 @@
+ 		 * copy without '.' if present.
+ 		 */
+ 		n = strlen(name) - 1;
+-		if (name[n] == '.' && n < sizeof(nbuf) - 1) {
++		if (name[n] == '.' && n < (int)sizeof(nbuf) - 1) {
+ 			memcpy(nbuf, name, n);
+ 			nbuf[n] = '\0';
+ 		} else
+Index: socket/res_send.c
+===================================================================
+--- socket/res_send.c	(Revision 702)
++++ socket/res_send.c	(Arbeitskopie)
+@@ -160,7 +160,7 @@
+ 				msg.msg_control = 0;
+ 				msg.msg_controllen = 0;
+ 				
+-				if (sendmsg(s, &msg, 0) != sizeof(len) + buflen) {
++				if (sendmsg(s, &msg, 0) != (int)sizeof(len) + buflen) {
+ 					terrno = errno;
+ #ifdef DEBUG
+ 					if (_res.options & RES_DEBUG)
+Index: socket/writev.c
+===================================================================
+--- socket/writev.c	(Revision 702)
++++ socket/writev.c	(Arbeitskopie)
+@@ -42,14 +42,12 @@
+ 			return r;
+ 		
+ 		{
+-			long size;
++			size_t size;
+ 			char *p, *_p;
+ 			int i;
+ 			
+ 			for (i = size = 0; i < niov; ++i) {
+-				if (iov[i].iov_len >= 0)
+-					size += iov[i].iov_len;
+-				else {
++				if ((ssize_t)iov[i].iov_len < 0 || (ssize_t)(size += iov[i].iov_len) < 0) {
+ 					__set_errno (EINVAL);
+ 					return -1;
+ 				}
+Index: stdio/fwrite.c
+===================================================================
+--- stdio/fwrite.c	(Revision 702)
++++ stdio/fwrite.c	(Arbeitskopie)
+@@ -85,7 +85,7 @@
+     /* This is an unbuffered stream using the standard output
+        buffer-flushing function, so we just do a straight write.  */
+     {
+-      ssize_t count = (stream->__io_funcs.__write == NULL ? to_write :
++      ssize_t count = (stream->__io_funcs.__write == NULL ? (ssize_t)to_write :
+ 		   (*stream->__io_funcs.__write) (stream->__cookie,
+ 						  (const char *) p,
+ 						  to_write));
+Index: stdio/lockfile.c
+===================================================================
+--- stdio/lockfile.c	(Revision 702)
++++ stdio/lockfile.c	(Arbeitskopie)
+@@ -25,7 +25,7 @@
+ 
+ 
+ void
+-__internal_flockfile (FILE *stream)
++__internal_flockfile (FILE __attribute__((unused)) *stream)
+ {
+   /* Do nothing.  Using this version does not do any locking.  */
+ }
+@@ -38,7 +38,7 @@
+ 
+ 
+ void
+-__internal_funlockfile (FILE *stream)
++__internal_funlockfile (FILE __attribute__((unused)) *stream)
+ {
+   /* Do nothing.  Using this version does not do any locking.  */
+ }
+@@ -51,7 +51,7 @@
+ 
+ 
+ int
+-__internal_ftrylockfile (FILE *stream)
++__internal_ftrylockfile (FILE __attribute__((unused)) *stream)
+ {
+   /* Do nothing.  Using this version does not do any locking.  */
+   return 1;
+Index: stdio/obstream.c
+===================================================================
+--- stdio/obstream.c	(Revision 702)
++++ stdio/obstream.c	(Arbeitskopie)
+@@ -28,7 +28,7 @@
+ grow (FILE *stream, int c)
+ {
+   struct obstack *obstack = (struct obstack *) stream->__cookie;
+-  int size_written = (int)(stream->__target + stream->__bufp - stream->__buffer);
++  size_t size_written = (size_t)(stream->__target + stream->__bufp - stream->__buffer);
+ 
+   /* Check if the buffer has been flushed by fseek().  */
+   if (stream->__target != -1 && stream->__target > 0)
+Index: stdio/printf_fp.c
+===================================================================
+--- stdio/printf_fp.c	(Revision 702)
++++ stdio/printf_fp.c	(Arbeitskopie)
+@@ -1043,7 +1043,7 @@
+ 
+ unsigned int
+ __guess_grouping (unsigned int intdig_max, const char *grouping,
+-		  wchar_t sepchar)
++		  wchar_t __attribute__((unused)) sepchar)
+ {
+   unsigned int groups;
+ 
+Index: stdio/setvbuf.c
+===================================================================
+--- stdio/setvbuf.c	(Revision 702)
++++ stdio/setvbuf.c	(Arbeitskopie)
+@@ -64,6 +64,7 @@
+       break;
+     case _IOLBF:	/* Line buffered.  */
+       stream->__linebuf = 1;
++      /* fall through */
+     case _IOFBF:	/* Fully buffered.  */
+       if (size == 0)
+ 	{
+Index: stdio/vfprintf.c
+===================================================================
+--- stdio/vfprintf.c	(Revision 702)
++++ stdio/vfprintf.c	(Arbeitskopie)
+@@ -995,7 +995,7 @@
+ 	else								      \
+ 	  {								      \
+ 	    len = strlen (string);					      \
+-	    if (prec < len)						      \
++	    if (prec < (int)len)						      \
+ 	      len = prec;						      \
+ 	  }								      \
+ 									      \
+@@ -1323,7 +1323,7 @@
+ 	    left = 1;
+ 	  }
+ 
+-	if (width + 32 >= sizeof (work_buffer))
++	if (width + 32 >= (int)sizeof (work_buffer))
+ 	  /* We have to use a special buffer.  The "32" is just a safe
+ 	     bet for all the output which is not counted in the width.  */
+ 	  workend = alloca (width + 32) + (width + 31);
+@@ -1334,7 +1334,7 @@
+     LABEL (width):
+       width = read_int (&f);
+ 
+-      if (width + 32 >= sizeof (work_buffer))
++      if (width + 32 >= (int)sizeof (work_buffer))
+ 	/* We have to use a special buffer.  The "32" is just a safe
+ 	   bet for all the output which is not counted in the width.  */
+ 	workend = alloca (width + 32) + (width + 31);
+@@ -1364,7 +1364,7 @@
+ 	prec = read_int (&f);
+       else
+ 	prec = 0;
+-      if (prec > width && prec + 32 > sizeof (work_buffer))
++      if (prec > width && prec + 32 > (int)sizeof (work_buffer))
+ 	workend = alloca (spec + 32) + (spec + 31);
+       JUMP (*f, step2_jumps);
+ 
+@@ -1663,7 +1663,7 @@
+ 	  }
+ 
+ 	/* Maybe the buffer is too small.  */
+-	if (MAX (prec, width) + 32 > sizeof (work_buffer))
++	if (MAX (prec, width) + 32 > (int)sizeof (work_buffer))
+ 	  workend = alloca (MAX (prec, width) + 32) + (MAX (prec, width) + 31);
+ 
+ 	/* Process format specifiers.  */
+@@ -1749,7 +1749,7 @@
+    representation of the format spec itself.  */
+ static int
+ printf_unknown (FILE *s, const struct printf_info *info,
+-		const void *const *args)
++		__attribute__((unused)) const void *const *args)
+ 
+ {
+   int done = 0;
+Index: stdio/vfscanf.c
+===================================================================
+--- stdio/vfscanf.c	(Revision 702)
++++ stdio/vfscanf.c	(Arbeitskopie)
+@@ -141,7 +141,7 @@
+ 			} while (0)
+ # define input_error()	do {						      \
+ 			  funlockfile (s);				      \
+-			  return done ?: EOF;				      \
++			  return done ?: (size_t)EOF;				      \
+ 			} while (0)
+ # define memory_error()	do {						      \
+ 			  funlockfile (s);				      \
+Index: stdio/vsnprintf.c
+===================================================================
+--- stdio/vsnprintf.c	(Revision 702)
++++ stdio/vsnprintf.c	(Arbeitskopie)
+@@ -78,7 +78,7 @@
+    will be set so that the function can report the error condition to
+    the caller.  */
+ static
+-void __vsnprintf_output (FILE* stream, int c)
++void __vsnprintf_output (FILE* stream, int __attribute__((unused)) c)
+ {
+   /* We use the last character as an overflow, as we end up writing the 
+    * \0 end terminator there anyway. The function will now be POSIX compliant
+Index: stdlib/strtod.c
+===================================================================
+--- stdlib/strtod.c	(Revision 702)
++++ stdlib/strtod.c	(Arbeitskopie)
+@@ -451,7 +451,7 @@
+ INTERNAL (STRTOF) (nptr, endptr, group LOCALE_PARAM)
+      const STRING_TYPE *nptr;
+      STRING_TYPE **endptr;
+-     int group;
++     int group __attribute__((unused));
+      LOCALE_PARAM_DECL
+ {
+   int negative;			/* The sign of the number.  */
+Index: stdlib/strtol.c
+===================================================================
+--- stdlib/strtol.c	(Revision 702)
++++ stdlib/strtol.c	(Arbeitskopie)
+@@ -232,7 +232,7 @@
+      const STRING_TYPE *nptr;
+      STRING_TYPE **endptr;
+      int base;
+-     int group;
++     int group __attribute__((unused));
+      LOCALE_PARAM_DECL
+ {
+   int negative;
+Index: string/strerror.c
+===================================================================
+--- string/strerror.c	(Revision 702)
++++ string/strerror.c	(Arbeitskopie)
+@@ -282,6 +282,7 @@
+         unknown = malloc (unknown_size);
+       if (unknown == NULL)
+         {
++error2:
+           strcpy (unknown_error2, _("Unknown error"));
+           return unknown_error2;
+         }
+@@ -292,8 +293,9 @@
+           			 _("Unknown error %u"), errnum);
+           char* newbuf;
+           
++          if (stored < 0) goto error2;
+           /* Did that work?  */
+-          if (stored < unknown_size)
++          if ((size_t)stored < unknown_size)
+             return unknown;
+           newbuf = realloc (unknown, unknown_size * 2);
+           if (newbuf == NULL)
+Index: string/strerror_r.c
+===================================================================
+--- string/strerror_r.c	(Revision 702)
++++ string/strerror_r.c	(Arbeitskopie)
+@@ -10,6 +10,8 @@
+ 
+ #include <string.h>
+ 
++#pragma GCC diagnostic ignored "-Wnonnull-compare"
++
+ /* The MiNTLib is actually reentrant.  The thread-safe version is
+    provided here for compatibility with the GNU libc.  */
+ char* __strerror_r (errnum, buf, bufsize)
+Index: string/wcscspn.c
+===================================================================
+--- string/wcscspn.c	(Revision 702)
++++ string/wcscspn.c	(Arbeitskopie)
+@@ -4,7 +4,7 @@
+ {
+ 	const wchar_t *a;
+ 	if (!c[0]) return wcslen(s);
+-	if (!c[1]) return (s=wcschr(a=s, *c)) ? s-a : wcslen(a);
++	if (!c[1]) return (s=wcschr(a=s, *c)) ? (size_t)(s-a) : wcslen(a);
+ 	for (a=s; *s && !wcschr(c, *s); s++);
+ 	return s-a;
+ }
+Index: string/wcsstr.c
+===================================================================
+--- string/wcsstr.c	(Revision 702)
++++ string/wcsstr.c	(Arbeitskopie)
+@@ -68,13 +68,13 @@
+ 	/* Search loop */
+ 	for (;;) {
+ 		/* Update incremental end-of-haystack pointer */
+-		if (z-h < l) {
++		if ((size_t)(z-h) < l) {
+ 			/* Fast estimate for MIN(l,63) */
+ 			size_t grow = l | 63;
+ 			const wchar_t *z2 = wmemchr(z, 0, grow);
+ 			if (z2) {
+ 				z = z2;
+-				if (z-h < l) return 0;
++				if ((size_t)(z-h) < l) return 0;
+ 			} else z += grow;
+ 		}
+ 
+Index: sunrpc/auth_none.c
+===================================================================
+--- sunrpc/auth_none.c	(Revision 702)
++++ sunrpc/auth_none.c	(Arbeitskopie)
+@@ -95,7 +95,7 @@
+ 
+ /*ARGSUSED */
+ static bool_t
+-authnone_marshal (AUTH *client, XDR *xdrs)
++authnone_marshal (AUTH __attribute__((unused)) *client, XDR *xdrs)
+ {
+   struct authnone_private *ap = authnone_private;
+ 
+@@ -105,23 +105,23 @@
+ }
+ 
+ static void
+-authnone_verf (AUTH *auth)
++authnone_verf (AUTH __attribute__((unused)) *auth)
+ {
+ }
+ 
+ static bool_t
+-authnone_validate (AUTH *auth, struct opaque_auth *oa)
++authnone_validate (AUTH __attribute__((unused)) *auth, struct opaque_auth __attribute__((unused)) *oa)
+ {
+   return TRUE;
+ }
+ 
+ static bool_t
+-authnone_refresh (AUTH *auth)
++authnone_refresh (AUTH __attribute__((unused)) *auth)
+ {
+   return FALSE;
+ }
+ 
+ static void
+-authnone_destroy (AUTH *auth)
++authnone_destroy (AUTH __attribute__((unused)) *auth)
+ {
+ }
+Index: sunrpc/auth_unix.c
+===================================================================
+--- sunrpc/auth_unix.c	(Revision 702)
++++ sunrpc/auth_unix.c	(Arbeitskopie)
+@@ -198,7 +198,7 @@
+  */
+ 
+ static void
+-authunix_nextverf (AUTH *auth)
++authunix_nextverf (AUTH __attribute__((unused)) *auth)
+ {
+   /* no action necessary */
+ }
+Index: sunrpc/clnt_raw.c
+===================================================================
+--- sunrpc/clnt_raw.c	(Revision 702)
++++ sunrpc/clnt_raw.c	(Arbeitskopie)
+@@ -141,7 +141,7 @@
+      caddr_t argsp;
+      xdrproc_t xresults;
+      caddr_t resultsp;
+-     struct timeval timeout;
++     struct timeval timeout __attribute__((unused));
+ {
+   struct clntraw_private *clp = clntraw_private;
+   XDR *xdrs = &clp->xdr_stream;
+@@ -218,7 +218,7 @@
+ }
+ 
+ static void
+-clntraw_geterr (CLIENT *cl, struct rpc_err *err)
++clntraw_geterr (CLIENT __attribute__((unused)) *cl, struct rpc_err __attribute__((unused)) *err)
+ {
+ }
+ 
+@@ -225,7 +225,7 @@
+ 
+ static bool_t
+ clntraw_freeres (cl, xdr_res, res_ptr)
+-     CLIENT *cl;
++     CLIENT *cl __attribute__((unused));
+      xdrproc_t xdr_res;
+      caddr_t res_ptr;
+ {
+@@ -248,12 +248,12 @@
+ }
+ 
+ static bool_t
+-clntraw_control (CLIENT *cl, int i, char *c)
++clntraw_control (CLIENT __attribute__((unused)) *cl, int __attribute__((unused)) i, char __attribute__((unused)) *c)
+ {
+   return FALSE;
+ }
+ 
+ static void
+-clntraw_destroy (CLIENT *cl)
++clntraw_destroy (CLIENT __attribute__((unused)) *cl)
+ {
+ }
+Index: sunrpc/clnt_tcp.c
+===================================================================
+--- sunrpc/clnt_tcp.c	(Revision 702)
++++ sunrpc/clnt_tcp.c	(Arbeitskopie)
+@@ -298,7 +298,7 @@
+     {
+       reply_msg.acpted_rply.ar_verf = _null_auth;
+       reply_msg.acpted_rply.ar_results.where = NULL;
+-      reply_msg.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
++      reply_msg.acpted_rply.ar_results.proc = (xdrproc_t)(void*)xdr_void;
+       if (!xdrrec_skiprecord (xdrs))
+ 	return (ct->ct_error.re_status);
+       /* now decode and validate the response header */
+Index: sunrpc/clnt_unix.c
+===================================================================
+--- sunrpc/clnt_unix.c	(Revision 702)
++++ sunrpc/clnt_unix.c	(Arbeitskopie)
+@@ -275,7 +275,7 @@
+     {
+       reply_msg.acpted_rply.ar_verf = _null_auth;
+       reply_msg.acpted_rply.ar_results.where = NULL;
+-      reply_msg.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
++      reply_msg.acpted_rply.ar_results.proc = (xdrproc_t)(void*)xdr_void;
+       if (!xdrrec_skiprecord (xdrs))
+ 	return ct->ct_error.re_status;
+       /* now decode and validate the response header */
+Index: sunrpc/key_call.c
+===================================================================
+--- sunrpc/key_call.c	(Revision 702)
++++ sunrpc/key_call.c	(Arbeitskopie)
+@@ -100,7 +100,7 @@
+   struct key_netstres kres;
+ 
+   memset (&kres, 0, sizeof (kres));
+-  if (key_call ((u_long) KEY_NET_GET, (xdrproc_t) xdr_void, (char *) NULL,
++  if (key_call ((u_long) KEY_NET_GET, (xdrproc_t) (void*) xdr_void, (char *) NULL,
+ 		(xdrproc_t) xdr_key_netstres, (char *) &kres) &&
+       (kres.status == KEY_SUCCESS) &&
+       (kres.key_netstres_u.knet.st_priv_key[0] != 0))
+@@ -218,7 +218,7 @@
+   if (client == NULL)
+     return -1;
+ 
+-  stat = clnt_call (client, KEY_GEN, (xdrproc_t) xdr_void, NULL,
++  stat = clnt_call (client, KEY_GEN, (xdrproc_t) (void*) xdr_void, NULL,
+ 		    (xdrproc_t) xdr_des_block, (caddr_t) key, tottimeout);
+   clnt_destroy (client);
+   __close (socket);
+Index: sunrpc/pm_getmaps.c
+===================================================================
+--- sunrpc/pm_getmaps.c	(Revision 702)
++++ sunrpc/pm_getmaps.c	(Arbeitskopie)
+@@ -74,7 +74,7 @@
+ 			   PMAPVERS, &socket, 50, 500);
+   if (client != (CLIENT *) NULL)
+     {
+-      if (CLNT_CALL (client, PMAPPROC_DUMP, (xdrproc_t)xdr_void, NULL,
++      if (CLNT_CALL (client, PMAPPROC_DUMP, (xdrproc_t)(void*)xdr_void, NULL,
+ 		     (xdrproc_t)xdr_pmaplist, (caddr_t)&head,
+ 		     minutetimeout) != RPC_SUCCESS)
+ 	{
+Index: sunrpc/pmap_rmt.c
+===================================================================
+--- sunrpc/pmap_rmt.c	(Revision 702)
++++ sunrpc/pmap_rmt.c	(Arbeitskopie)
+@@ -402,7 +402,7 @@
+ #endif
+ 	}
+       xdrs->x_op = XDR_FREE;
+-      msg.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
++      msg.acpted_rply.ar_results.proc = (xdrproc_t)(void*)xdr_void;
+       (void) xdr_replymsg (xdrs, &msg);
+       (void) (*xresults) (xdrs, resultsp);
+       xdr_destroy (xdrs);
+Index: sunrpc/svc_auth.c
+===================================================================
+--- sunrpc/svc_auth.c	(Revision 702)
++++ sunrpc/svc_auth.c	(Arbeitskopie)
+@@ -118,7 +118,7 @@
+ }
+ 
+ static enum auth_stat
+-_svcauth_null (struct svc_req *rqst, struct rpc_msg *msg)
++_svcauth_null (struct svc_req __attribute__((unused)) *rqst, struct rpc_msg __attribute__((unused)) *msg)
+ {
+   return AUTH_OK;
+ }
+Index: sunrpc/svc_authux.c
+===================================================================
+--- sunrpc/svc_authux.c	(Revision 702)
++++ sunrpc/svc_authux.c	(Arbeitskopie)
+@@ -145,7 +145,7 @@
+  */
+ /*ARGSUSED */
+ enum auth_stat
+-_svcauth_short (struct svc_req *rqst, struct rpc_msg *msg)
++_svcauth_short (struct svc_req __attribute__((unused)) *rqst, struct rpc_msg __attribute__((unused)) *msg)
+ {
+   return AUTH_REJECTEDCRED;
+ }
+Index: sunrpc/svc_raw.c
+===================================================================
+--- sunrpc/svc_raw.c	(Revision 702)
++++ sunrpc/svc_raw.c	(Arbeitskopie)
+@@ -92,7 +92,7 @@
+ }
+ 
+ static enum xprt_stat
+-svcraw_stat (SVCXPRT *xprt)
++svcraw_stat (SVCXPRT __attribute__((unused)) *xprt)
+ {
+   return XPRT_IDLE;
+ }
+@@ -99,7 +99,7 @@
+ 
+ static bool_t
+ svcraw_recv (xprt, msg)
+-     SVCXPRT *xprt;
++     SVCXPRT *xprt __attribute__((unused));
+      struct rpc_msg *msg;
+ {
+   struct svcraw_private *srp = svcraw_private;
+@@ -116,7 +116,7 @@
+ }
+ 
+ static bool_t
+-svcraw_reply (SVCXPRT *xprt, struct rpc_msg *msg)
++svcraw_reply (SVCXPRT __attribute__((unused)) *xprt, struct rpc_msg *msg)
+ {
+   struct svcraw_private *srp = svcraw_private;
+   XDR *xdrs;
+@@ -133,7 +133,7 @@
+ }
+ 
+ static bool_t
+-svcraw_getargs (SVCXPRT *xprt, xdrproc_t xdr_args, caddr_t args_ptr)
++svcraw_getargs (SVCXPRT __attribute__((unused)) *xprt, xdrproc_t xdr_args, caddr_t args_ptr)
+ {
+   struct svcraw_private *srp = svcraw_private;
+ 
+@@ -143,7 +143,7 @@
+ }
+ 
+ static bool_t
+-svcraw_freeargs (SVCXPRT *xprt, xdrproc_t xdr_args, caddr_t args_ptr)
++svcraw_freeargs (SVCXPRT __attribute__((unused)) *xprt, xdrproc_t xdr_args, caddr_t args_ptr)
+ {
+   struct svcraw_private *srp = svcraw_private;
+   XDR *xdrs;
+@@ -156,6 +156,6 @@
+ }
+ 
+ static void
+-svcraw_destroy (SVCXPRT *xprt)
++svcraw_destroy (SVCXPRT __attribute__((unused)) *xprt)
+ {
+ }
+Index: sunrpc/svc_simple.c
+===================================================================
+--- sunrpc/svc_simple.c	(Revision 702)
++++ sunrpc/svc_simple.c	(Arbeitskopie)
+@@ -129,7 +129,7 @@
+    */
+   if (rqstp->rq_proc == NULLPROC)
+     {
+-      if (svc_sendreply (transp, (xdrproc_t)xdr_void, (char *) NULL) == FALSE)
++      if (svc_sendreply (transp, (xdrproc_t)(void*)xdr_void, (char *) NULL) == FALSE)
+ 	{
+ 	  (void) fprintf (stderr, "xxx\n");
+ 	  exit (1);
+@@ -149,7 +149,7 @@
+ 	    return;
+ 	  }
+ 	outdata = (*(pl->p_progname)) (xdrbuf);
+-	if (outdata == NULL && pl->p_outproc != (xdrproc_t)xdr_void)
++	if (outdata == NULL && pl->p_outproc != (xdrproc_t)(void*)xdr_void)
+ 	  /* there was an error */
+ 	  return;
+ 	if (!svc_sendreply (transp, pl->p_outproc, outdata))
+Index: sunrpc/svc_tcp.c
+===================================================================
+--- sunrpc/svc_tcp.c	(Revision 702)
++++ sunrpc/svc_tcp.c	(Arbeitskopie)
+@@ -243,7 +243,7 @@
+ }
+ 
+ static bool_t
+-rendezvous_request (SVCXPRT *xprt, struct rpc_msg *errmsg)
++rendezvous_request (SVCXPRT __attribute__((unused)) *xprt, struct rpc_msg __attribute__((unused)) *errmsg)
+ {
+   int sock;
+   struct tcp_rendezvous *r;
+@@ -269,7 +269,7 @@
+ }
+ 
+ static enum xprt_stat
+-rendezvous_stat (SVCXPRT *xprt)
++rendezvous_stat (SVCXPRT __attribute__((unused)) *xprt)
+ {
+   return XPRT_IDLE;
+ }
+Index: sunrpc/svc_udp.c
+===================================================================
+--- sunrpc/svc_udp.c	(Revision 702)
++++ sunrpc/svc_udp.c	(Arbeitskopie)
+@@ -213,7 +213,7 @@
+ 
+ static enum xprt_stat
+ svcudp_stat (xprt)
+-     SVCXPRT *xprt;
++     SVCXPRT *xprt __attribute__((unused));
+ {
+ 
+   return XPRT_IDLE;
+Index: sunrpc/svc_unix.c
+===================================================================
+--- sunrpc/svc_unix.c	(Revision 702)
++++ sunrpc/svc_unix.c	(Arbeitskopie)
+@@ -237,7 +237,7 @@
+ }
+ 
+ static bool_t
+-rendezvous_request (SVCXPRT *xprt, struct rpc_msg *errmsg)
++rendezvous_request (SVCXPRT __attribute__((unused)) *xprt, struct rpc_msg __attribute__((unused)) *errmsg)
+ {
+   int sock;
+   struct unix_rendezvous *r;
+@@ -266,7 +266,7 @@
+ }
+ 
+ static enum xprt_stat
+-rendezvous_stat (SVCXPRT *xprt)
++rendezvous_stat (SVCXPRT __attribute__((unused)) *xprt)
+ {
+   return XPRT_IDLE;
+ }
+Index: sunrpc/xdr.c
+===================================================================
+--- sunrpc/xdr.c	(Revision 702)
++++ sunrpc/xdr.c	(Arbeitskopie)
+@@ -552,7 +552,7 @@
+ 	  return FALSE;
+ 	}
+       /* fall into ... */
+-
++      /* fall through */
+     case XDR_ENCODE:
+       return xdr_opaque (xdrs, sp, nodesize);
+ 
+@@ -699,7 +699,7 @@
+ 	}
+       sp[size] = 0;
+       /* fall into ... */
+-
++      /* fall through */
+     case XDR_ENCODE:
+       return xdr_opaque (xdrs, sp, size);
+ 
+Index: sunrpc/xdr_mem.c
+===================================================================
+--- sunrpc/xdr_mem.c	(Revision 702)
++++ sunrpc/xdr_mem.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+  */
+ 
+ static void
+-xdrmem_destroy (XDR *xdrs)
++xdrmem_destroy (XDR __attribute__((unused)) *xdrs)
+ {
+ }
+ 
+Index: sunrpc/xdr_sizeof.c
+===================================================================
+--- sunrpc/xdr_sizeof.c	(Revision 702)
++++ sunrpc/xdr_sizeof.c	(Arbeitskopie)
+@@ -42,7 +42,7 @@
+ 
+ /* ARGSUSED */
+ static bool_t
+-x_putlong (XDR *xdrs, const long *longp)
++x_putlong (XDR *xdrs, const long __attribute__((unused)) *longp)
+ {
+   xdrs->x_handy += BYTES_PER_XDR_UNIT;
+   return TRUE;
+@@ -50,7 +50,7 @@
+ 
+ /* ARGSUSED */
+ static bool_t
+-x_putbytes (XDR *xdrs, const char *bp, u_int len)
++x_putbytes (XDR *xdrs, const char __attribute__((unused)) *bp, u_int len)
+ {
+   xdrs->x_handy += len;
+   return TRUE;
+@@ -64,7 +64,7 @@
+ 
+ /* ARGSUSED */
+ static bool_t
+-x_setpostn (XDR *xdrs, u_int len)
++x_setpostn (XDR __attribute__((unused)) *xdrs, u_int __attribute__((unused)) len)
+ {
+   /* This is not allowed */
+   return FALSE;
+@@ -120,7 +120,7 @@
+ }
+ 
+ static bool_t
+-x_putint32 (XDR *xdrs, const int32_t *int32p)
++x_putint32 (XDR *xdrs, const int32_t __attribute__((unused)) *int32p)
+ {
+   xdrs->x_handy += BYTES_PER_XDR_UNIT;
+   return TRUE;
+@@ -146,9 +146,9 @@
+   ops.x_putint32 = x_putint32;
+ 
+   /* the other harmless ones */
+-  ops.x_getlong = (dummyfunc1) harmless;
+-  ops.x_getbytes = (dummyfunc2) harmless;
+-  ops.x_getint32 = (dummyfunc3) harmless;
++  ops.x_getlong = (dummyfunc1) (void*) harmless;
++  ops.x_getbytes = (dummyfunc2) (void*) harmless;
++  ops.x_getint32 = (dummyfunc3) (void*) harmless;
+ 
+   x.x_op = XDR_ENCODE;
+   x.x_ops = &ops;
+Index: sunrpc/xdr_stdio.c
+===================================================================
+--- sunrpc/xdr_stdio.c	(Revision 702)
++++ sunrpc/xdr_stdio.c	(Arbeitskopie)
+@@ -157,7 +157,7 @@
+ }
+ 
+ static int32_t *
+-xdrstdio_inline (XDR *xdrs, int len)
++xdrstdio_inline (XDR __attribute__((unused)) *xdrs, int __attribute__((unused)) len)
+ {
+   /*
+    * Must do some work to implement this: must insure
+Index: time/strptime.c
+===================================================================
+--- time/strptime.c	(Revision 702)
++++ time/strptime.c	(Arbeitskopie)
+@@ -45,6 +45,7 @@
+ #endif
+ #endif
+ 
++#pragma GCC diagnostic ignored "-Wtype-limits"
+ 
+ #ifndef __P
+ # if defined __GNUC__ || (defined __STDC__ && __STDC__)
+Index: tz/Makefile
+===================================================================
+--- tz/Makefile	(Revision 702)
++++ tz/Makefile	(Arbeitskopie)
+@@ -53,6 +53,11 @@
+ zic = ./zic_for_build$(EXEEXT_FOR_BUILD)
+ OBJS_FOR_BUILD = localtime_for_build.o asctime_for_build.o strftime_for_build.o
+ 
++zic_for_build$(EXEEXT_FOR_BUILD): CFLAGS_FOR_BUILD += $(shell echo "#include <sys/wait.h>" | $(CC_FOR_BUILD) -xc -S - -o /dev/null 2>/dev/null || echo "-DHAVE_SYS_WAIT_H=0")
++zic_for_build$(EXEEXT_FOR_BUILD): CFLAGS_FOR_BUILD += $(shell echo "#include <direct.h>" | $(CC_FOR_BUILD) -xc -E - -o /dev/null 2>/dev/null && echo "-DHAVE_DIRECT_H")
++zic_for_build$(EXEEXT_FOR_BUILD): CFLAGS_FOR_BUILD += $(shell echo -e "#include <unistd.h>\nvoid *p=link" | $(CC_FOR_BUILD) -xc -S - -o /dev/null 2>/dev/null || echo "-DHAVE_LINK=0")
++zic_for_build$(EXEEXT_FOR_BUILD): CFLAGS_FOR_BUILD += $(shell echo -e "#include <unistd.h>\nvoid *p=symlink" | $(CC_FOR_BUILD) -xc -S - -o /dev/null 2>/dev/null || echo "-DHAVE_SYMLINK=0")
++
+ zic_for_build$(EXEEXT_FOR_BUILD): zic_for_build.o $(OBJS_FOR_BUILD)
+ 	$(AM_V_LD)$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o $@ $^
+ zdump = ./zdump_for_build$(EXEEXT_FOR_BUILD)
+Index: tz/private.h
+===================================================================
+--- tz/private.h	(Revision 702)
++++ tz/private.h	(Arbeitskopie)
+@@ -341,6 +341,15 @@
+ #define SIZE_MAX ((size_t) -1)
+ #endif
+ 
++#ifndef __GNUC_PREREQ
++#  if defined __GNUC__ && defined __GNUC_MINOR__
++#   define __GNUC_PREREQ(maj, min) \
++      ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
++#  else
++#    define __GNUC_PREREQ(maj, min) 0
++#  endif
++#endif
++
+ #if __GNUC_PREREQ(2, 96)
+ # define ATTRIBUTE_CONST __attribute__ ((const))
+ # define ATTRIBUTE_MALLOC __attribute__ ((__malloc__))
+Index: tz/strftime.c
+===================================================================
+--- tz/strftime.c	(Revision 702)
++++ tz/strftime.c	(Arbeitskopie)
+@@ -441,11 +441,14 @@
+ 					pt = _add(t->TM_ZONE, pt, ptlim);
+ 				} else
+ 				{
+-#elif HAVE_TZNAME
++#endif
++#if HAVE_TZNAME
+ 					if (t->tm_isdst >= 0)
+ 						pt = _add(tzname[t->tm_isdst != 0], pt, ptlim);
+ #endif
++#ifdef TM_ZONE
+ 				}
++#endif
+ 				/*
+ 				 ** C99 and later say that %Z must be
+ 				 ** replaced by the empty string if the
+Index: unix/sigreturn.c
+===================================================================
+--- unix/sigreturn.c	(Revision 702)
++++ unix/sigreturn.c	(Arbeitskopie)
+@@ -12,7 +12,7 @@
+ #include <mint/mintbind.h>
+ 
+ void
+-__sigreturn (struct sigcontext* __unused)
++__sigreturn (struct sigcontext __attribute__((unused)) * __unused)
+ {
+ 	Psigreturn ();
+ }
+Index: unix/sigvec.c
+===================================================================
+--- unix/sigvec.c	(Revision 702)
++++ unix/sigvec.c	(Arbeitskopie)
+@@ -46,7 +46,7 @@
+ weak_alias (__sigvec, sigvec)
+ 
+ int
+-__siginterrupt (int sig, int fail)
++__siginterrupt (int __attribute__((unused)) sig, int fail)
+ {
+ 	if (fail)
+ 	  {
